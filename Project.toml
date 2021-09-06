@@ -1,7 +1,16 @@
 name = "HTM Assembly calculus"
 authors = ["Konstantinos Samaras-Tsakiris"]
-[compat]
-julia = "1.6.2"
-DrWatson = "2.3.0"
+
 [deps]
+CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
+Chain = "8be319e6-bccf-4806-a6f7-6fae938471bc"
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 DrWatson = "634d3b9d-ee7a-5ddf-bec9-22491ea816e1"
+HierarchicalTemporalMemory = "db654dba-670c-566a-9226-64313b881ded"
+Lazy = "50d2b5c4-7a5e-59d5-8109-a42b560f39c0"
+Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
+Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
+
+[compat]
+DrWatson = "2.3.0"
+julia = "1.6.2"
