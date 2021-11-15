@@ -340,7 +340,7 @@ version = "2.8.1+0"
 
 [[HierarchicalTemporalMemory]]
 deps = ["Chain", "ImageFiltering", "IterTools", "Lazy", "LinearAlgebra", "Parameters", "Random", "Setfield", "SparseArrays", "Statistics", "StatsBase"]
-path = "../HierarchicalTemporalMemory.jl"
+git-tree-sha1 = "a2b935a3a4084d4f4e0964587879089519fcea94"
 uuid = "db654dba-670c-566a-9226-64313b881ded"
 version = "0.3.0"
 
