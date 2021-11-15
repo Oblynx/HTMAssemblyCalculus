@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.16.0
+# v0.17.0
 
 using Markdown
 using InteractiveUtils
@@ -7,7 +7,7 @@ using InteractiveUtils
 # ╔═╡ 0d3bf5f6-1171-11ec-0fee-c73bb459dc3d
 begin
 	import Pkg; Pkg.activate(Base.current_project())
-	using Revise
+	Pkg.instantiate()
 	using HierarchicalTemporalMemory
 	using Random, Chain, Setfield, Statistics, Plots, PlutoUI
 	#using PlotlyJS;	plotlyjs()
@@ -238,7 +238,7 @@ abs.(expmedian(activity_per_active_minicolumn.(y)) .- activity_n(y)/activity_n(y
 md"The 2 are almost identical, therefore this explanation of the first few steps in the graph seems to hold up."
 
 # ╔═╡ Cell order:
-# ╟─0d3bf5f6-1171-11ec-0fee-c73bb459dc3d
+# ╠═0d3bf5f6-1171-11ec-0fee-c73bb459dc3d
 # ╟─1bb0fcfc-2d7a-4634-9c93-263050c56a55
 # ╠═70471bdc-660e-442e-b92a-f486abd120a7
 # ╟─7620c202-c6cf-44db-9cda-13642e28b45a
