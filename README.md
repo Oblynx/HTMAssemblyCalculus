@@ -1,22 +1,48 @@
-# HTM Assembly calculus
+# A calculus for brain computation based on the Hierarchical Temporal Memory
 
-This code base is using the Julia Language and [DrWatson](https://juliadynamics.github.io/DrWatson.jl/stable/)
-to make a reproducible scientific project named
-> HTM Assembly calculus
+Compare the [Hierarchical Temporal Memory](https://github.com/Oblynx/HierarchicalTemporalMemory.jl) with another model of brain computation based on [neuron assemblies](https://www.pnas.org/content/117/25/14464).
 
-It is authored by Konstantinos Samaras-Tsakiris.
+**Neuron assembly calculus** is a computational framwwork for cognitive function.
+It describes a dynamical system of brain areas with random connections between excitatory neurons, with Hebbian plasticity, where only the top-k most activated neurons fire.
+From these properties _neuron assemblies_ emerge: clusters of highly interconnected neurons in the same area,
+which can be created through programmatic operations.
+The authors probabilistically prove the convergence of these operations based on the model's structure and connectome (ref: [Neuron assembly calculus], [A biologically plausible parser]).
 
-To (locally) reproduce this project, do the following:
+**Hierarchical temporal memory** (HTM) is a biologically constrained model of brain computation.
+It too is a dynamical system of brain areas with excitatory neurons, Hebbian plasticity and top-k activation.
+However, the dynamics are more strongly constrained; for example:
+neurons are arranged in minicolumns with local competition, and have multiple dendrites, where they receive less-stimulating input ([Why neurons have thousands of synapses]).
+This model of a brain area's dynamics underpins the [Thousand Brains theory] that attempts to explain human neocortical computation.
 
-0. Download this code base. Notice that raw data are typically not included in the
-   git-history and may need to be downloaded independently.
-1. Open a Julia console and do:
-   ```
-   julia> using Pkg
-   julia> Pkg.add("DrWatson") # install globally, for using `quickactivate`
-   julia> Pkg.activate("path/to/this/project")
-   julia> Pkg.instantiate()
-   ```
+## Questions
 
-This will install all necessary packages for you to be able to run the scripts and
-everything should work out of the box, including correctly finding local paths.
+The 2 models are based on similar, but not identical assumptions.
+Contrasting these 2, a few questions emerge that can draw insight on both models:
+
+1. Does the Hierarchical Temporal Memory create neuron assemblies? Can we manipulate them with the same operations?
+1. How sensitive is neuron assembly calculus to its precise set of assumptions? Will it hold up to the stronger biological constraints imposed by HTM?
+
+A positive answer to these questions can strengthen both models.
+# Implement neuron assemblies on HTM
+
+This project uses the Julia implementation of HTM ([HTM.jl]) to experiment with neuron assemblies.
+The basic operations of assembly calculus are simulated to explore the conditions of their convergence.
+We attempt to find hyperparameters that demonstrate the operations and simulate the HTM dynamics to show the convergence of the operations.
+
+## Notebooks
+
+We experiment in [Pluto notebooks], which provide a reproducible environment.
+The rendered HTML version is available at https://oblynx.github.io/HTMAssemblyCalculus
+
+The notebooks so far are the following:
+
+1. [projection.jl](notebooks/projection.jl): show the most basic operation, the projection.
+
+
+
+[Neuron assembly calculus]: https://www.pnas.org/content/117/25/14464
+[A biologically plausible parser]: https://direct.mit.edu/tacl/article/doi/10.1162/tacl_a_00432/108608/A-Biologically-Plausible-Parser
+[Thousand Brains theory]: https://link.springer.com/article/10.1007/s42452-021-04715-0
+[HTM.jl]: https://github.com/Oblynx/HierarchicalTemporalMemory.jl
+[Why neurons have thousands of synapses]: https://www.frontiersin.org/articles/10.3389/fncir.2016.00023/full
+[Pluto notebooks]: https://github.com/fonsp/Pluto.jl
