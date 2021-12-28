@@ -4,6 +4,7 @@ authors = ["Konstantinos Samaras-Tsakiris"]
 [deps]
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 Chain = "8be319e6-bccf-4806-a6f7-6fae938471bc"
+Dagger = "d58978e5-989f-55fb-8d15-ea34adc7bf54"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 HierarchicalTemporalMemory = "db654dba-670c-566a-9226-64313b881ded"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
