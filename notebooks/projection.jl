@@ -271,18 +271,23 @@ interconnectionMeasure(activation, region)= activation' * distalSynapses(region)
 
 # ╔═╡ 059f3e13-56f6-4dc6-9570-19c74996d1ef
 md"""
-Using the interconnection measure we can now determine the average interconnectivity of the assemblies across experiments and compare with the average interconnectivity of random neuronal activations that aren't assemblies.
+Using the interconnection measure we can now determine the average interconnectivity of the assemblies across experiments and compare with the average interconnectivity of 30 random neuronal activations that aren't assemblies.
 """
 
 # ╔═╡ 8e9003fa-c822-4508-9862-58a816d9242d
 assemblyInterconnection= map(interconnectionMeasure, y[end,:], yState)|> mean
 
 # ╔═╡ d4cfbfe7-ba6f-4936-8854-8d49277657d2
-randomInterconection= map(interconnectionMeasure,
-	[bitrand(Nₙ(r)) for r in yState], yState)|> mean
+randomInterconection= map(yState) do (r)
+	@chain begin
+		[bitrand(Nₙ(r)) for i= 1:30]       # 30 random assemblies
+		interconnectionMeasure.(_,Ref(r))  # interconnection measure for each
+		mean
+	end
+end |> mean
 
 # ╔═╡ dfff3823-d750-40e1-9ddf-769cb2c7e575
-md"The average interconnectivity of assemblies is **×$(round(assemblyInterconnection / randomInterconection, digits=1))** times higher than random"
+md"The average interconnectivity of assemblies is **×$(round(assemblyInterconnection / randomInterconection, digits=1))** times higher than random. It probably increases as the training process continues."
 
 # ╔═╡ Cell order:
 # ╠═0d3bf5f6-1171-11ec-0fee-c73bb459dc3d
@@ -322,7 +327,7 @@ md"The average interconnectivity of assemblies is **×$(round(assemblyInterconne
 # ╠═dcbe4617-7314-42c1-87bf-57ca82554a20
 # ╟─86e68710-1323-434e-b24b-d86b2719f53a
 # ╠═da7a8cfb-986c-4598-8696-30c36ffb263d
-# ╟─059f3e13-56f6-4dc6-9570-19c74996d1ef
+# ╠═059f3e13-56f6-4dc6-9570-19c74996d1ef
 # ╠═8e9003fa-c822-4508-9862-58a816d9242d
 # ╠═d4cfbfe7-ba6f-4936-8854-8d49277657d2
-# ╟─dfff3823-d750-40e1-9ddf-769cb2c7e575
+# ╠═dfff3823-d750-40e1-9ddf-769cb2c7e575
