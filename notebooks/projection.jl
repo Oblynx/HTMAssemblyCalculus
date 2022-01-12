@@ -10,7 +10,6 @@ begin
 	Pkg.instantiate()
 	using HierarchicalTemporalMemory
 	using Random, Chain, Setfield, Statistics, Plots, PlutoUI
-	#using PlotlyJS;	plotlyjs()
 end
 
 # ╔═╡ 1bb0fcfc-2d7a-4634-9c93-263050c56a55
@@ -112,6 +111,8 @@ x= @chain bitrand(Nin) A(_).active;
 
 # ╔═╡ 6790a86a-3990-4c6a-878f-c18779f8d48d
 md"""
+### The Projection operation
+
 Now all we need to do is to repeatedly stimulate `B` with `x` and let it learn.
 Each time `B` is stimulated, it will produce a `yᵢ`:
 """
@@ -129,6 +130,9 @@ begin
 	reset!(B)
 	md"`step!(B,x).active == y₁`: $((step!(B,x).active .== y₁) |> all)"
 end
+
+# ╔═╡ 71f21302-04db-41aa-a259-f3be2b7bc271
+md"We will now explore the result of repeated stimulation"
 
 # ╔═╡ 5e0ac810-1689-4bfb-88a8-85504cd821b6
 md"""
@@ -173,6 +177,7 @@ begin
 	  fetch.(_)
 	  splitReshapeExp
 	end
+	nothing
 end
 
 # ╔═╡ 6a20715a-9dc9-461a-b6a2-f02522e277f0
@@ -231,7 +236,7 @@ activity_n(y)= count.(y)|> expmedian
 # ╔═╡ 85dfe3ed-cf70-4fde-a94a-f70c3fe4abf6
 begin
 	using Plots.PlotMeasures
-	plot(activity_n(y)/activity_n(y)[1], linecolor=:blue, foreground_color_subplot=:blue, ylabel="Relative activity in B", rightmargin=14mm, legend=:none)
+	plot(activity_n(y)/activity_n(y)[1], linecolor=:blue, foreground_color_subplot=:blue, xlabel="t", ylabel="Relative activity in B", rightmargin=14mm, legend=:none)
 	plot!(twinx(), Δȳₜ, linecolor=:red, foreground_color_subplot=:red, ylabel="median Δȳ", legend=:none)
 end
 
@@ -280,14 +285,62 @@ assemblyInterconnection= map(interconnectionMeasure, y[end,:], yState)|> mean
 # ╔═╡ d4cfbfe7-ba6f-4936-8854-8d49277657d2
 randomInterconection= map(yState) do (r)
 	@chain begin
-		[bitrand(Nₙ(r)) for i= 1:30]       # 30 random assemblies
+		[bitrand(Nₙ(r)) for i= 1:30]       # 30 random activations
 		interconnectionMeasure.(_,Ref(r))  # interconnection measure for each
-		mean
+		mean                               # mean interconnection among the 30
 	end
-end |> mean
+end |> mean                                # mean across the experiments
 
 # ╔═╡ dfff3823-d750-40e1-9ddf-769cb2c7e575
-md"The average interconnectivity of assemblies is **×$(round(assemblyInterconnection / randomInterconection, digits=1))** times higher than random. It probably increases as the training process continues."
+md"The average interconnectivity of assemblies is **×$(round(assemblyInterconnection / randomInterconection, digits=1))** times higher than random. It probably increases as the training process continues. Let's confirm this with a training graph:"
+
+# ╔═╡ ed61ded0-d665-46a9-bed8-cd83cb0a545a
+begin
+	train_interconnection!(R,x)= begin
+	    y= step!(R,x).active
+		interconnectionMeasure(y,R)
+	end
+	Random.seed!(0)
+	reset!(B)
+	trainingcurve= [train_interconnection!(B,x) for t= 1:1.5T]
+	md"This cell produces the training curve."
+end
+
+# ╔═╡ 5bd5049c-de0d-4838-9c82-9cef604e650e
+begin
+	plot(trainingcurve,
+		minorgrid=true, title="Assembly interconnection training curve",
+		ylabel="assembly interconnection",
+		xlabel="t", label=:none
+	)
+	vline!([30,30],linecolor=:black, opacity=0.3, linestyle=:dash, label=:none)
+end
+
+# ╔═╡ b886095d-d449-4334-99cf-44b800bb4fc4
+md"In the graph we can see that the interconnection measure reaches the limit cycle at the same cutoff $T=30$ that we chose to consider assemblies stable"
+
+# ╔═╡ 8fdacada-55df-4abd-9501-7405e608529b
+md"""
+#### Is `x` an assembly?
+### Note on defining assemblies and on input regions
+
+In this notebook, we activate region `A` arbitrarily, through an external mechanism.
+Is the resulting activation `x` an assembly?
+
+The interconnection measure of `x` is $(interconnectionMeasure(x,A)).
+That's because region A didn't go through any learning steps and regions begin with no recurrent connections; they only build them as needed by the learning rules.
+`x` is a neuronal activation, but strictly speaking not an assembly.
+
+However, this is not actually an important question.
+An HTM region expects external stimulation. In this case, the external stimulation for B comes from A.
+Correspondingly, we could have used another region to produce an external stimulation for A.
+As long as we can assume:
+
+1. some external stimulation
+1. convergence of projection
+
+we can use "input regions" that produce neuronal stimulations as input to others, without having to apply the learning rules themselves.
+"""
 
 # ╔═╡ Cell order:
 # ╠═0d3bf5f6-1171-11ec-0fee-c73bb459dc3d
@@ -306,7 +359,8 @@ md"The average interconnectivity of assemblies is **×$(round(assemblyInterconne
 # ╟─6790a86a-3990-4c6a-878f-c18779f8d48d
 # ╠═5458c6ae-ace2-4928-8a9b-ef919a1e97cb
 # ╟─6b56422c-5f9b-41d8-a080-ef5ca3d7db7b
-# ╠═3229da2a-92f3-4064-bb80-cbd9f5523d7d
+# ╟─3229da2a-92f3-4064-bb80-cbd9f5523d7d
+# ╟─71f21302-04db-41aa-a259-f3be2b7bc271
 # ╟─5e0ac810-1689-4bfb-88a8-85504cd821b6
 # ╠═1015f629-9818-4dbb-b574-97c552e96164
 # ╟─62d41be1-2970-48e1-b689-c2ecf1ab10ce
@@ -327,7 +381,11 @@ md"The average interconnectivity of assemblies is **×$(round(assemblyInterconne
 # ╠═dcbe4617-7314-42c1-87bf-57ca82554a20
 # ╟─86e68710-1323-434e-b24b-d86b2719f53a
 # ╠═da7a8cfb-986c-4598-8696-30c36ffb263d
-# ╠═059f3e13-56f6-4dc6-9570-19c74996d1ef
+# ╟─059f3e13-56f6-4dc6-9570-19c74996d1ef
 # ╠═8e9003fa-c822-4508-9862-58a816d9242d
 # ╠═d4cfbfe7-ba6f-4936-8854-8d49277657d2
-# ╠═dfff3823-d750-40e1-9ddf-769cb2c7e575
+# ╟─dfff3823-d750-40e1-9ddf-769cb2c7e575
+# ╠═ed61ded0-d665-46a9-bed8-cd83cb0a545a
+# ╟─5bd5049c-de0d-4838-9c82-9cef604e650e
+# ╟─b886095d-d449-4334-99cf-44b800bb4fc4
+# ╟─8fdacada-55df-4abd-9501-7405e608529b
