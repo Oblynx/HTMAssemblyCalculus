@@ -92,7 +92,7 @@ Conversely, a high overlap is a strong indication that 2 assemblies are not unre
 """
 
 # ╔═╡ 0e31f16f-f2c3-4497-ad0b-47d0fc393d4c
-"`overlap(x,y)` of 2 assemblies in the same region is the number of neurons that are active in both"
+"`overlap(x,y)` of 2 assemblies in the same region is the number of neurons that are active in both. Symbol: `x&y`"
 overlap(x,y)= count(x .& y)
 
 # ╔═╡ b2e2c302-eefd-41ec-97ca-aa302d62f2f1
@@ -105,7 +105,7 @@ Let the resulting activation be `abm`. We would expect it to be a "compromise" b
 As `abm` becomes an assembly after repeated activations, do the assemblies `am` and `bm` remain unaffected?
 
 To answer this question we will repeatedly stimulate `M` with `a|b` (`OR` of a,b), producing `abmᵢ`.
-After each stimulation, we will also stimulate (without learning) with `a` and `b`, in order to measure:
+After each stimulation, we will also stimulate (without learning) with `a` and `b` separately, in order to measure:
 
 - the overlap of `abmᵢ` with the initial assemblies `am₀` and `bm₀`. This is our reference frame: whether the activation remains balanced.
 - the overlap of `amᵢ` and `bmᵢ` with `am₀` and `bm₀` respectively. This will show whether the original assemblies are changing.
@@ -120,7 +120,7 @@ measure(M, abm)= begin
 	bm= M(b).active
 	(
 		ref= (overlap(abm,am₀), overlap(abm,bm₀)),
-		change= (overlap(am,am₀), overlap(bm,bm₀)),
+		Δa= (overlap(am,am₀), overlap(bm,bm₀)),
 		assoc= overlap(am,bm)
 	)
 end
@@ -131,21 +131,48 @@ stimulateMeasure!(M)= begin
 	measure(M, abm)
 end
 
+# ╔═╡ 76758fe0-0136-44dc-9144-193aea2130f5
+md"With the measurements defined, we can now run the experiment."
+
+# ╔═╡ 39437dfc-38cb-412f-8fc6-02fa3f646473
+md"""
+## Results
+
+The figure below shows how the assemblies are diverging from their original set until $t=6$, while at the same they are approaching closer together:
+"""
+
 # ╔═╡ 13e856d8-2eaf-4326-8026-b4e7edebf4c0
 begin
 	_M= deepcopy(M)
 	measurements= [stimulateMeasure!(_M) for t= 1:T]
-	md"With the measurements defined, we can now run the experiment."
+	nothing
 end
 
 # ╔═╡ d109633b-1740-4da4-ad10-eb2f2f6527de
-plot(map(f-> f.(measurements), [x-> x.change[1], x-> x.change[2], x-> x.assoc]))
-
-# ╔═╡ 3097e22b-d4a2-42b5-90de-2b295d95cfd0
-
+begin
+	p= get_color_palette(:auto, plot_color(:white))
+	p2= vec([0.8,1]*p[1:3]')
+	plot(map(f-> f.(measurements), [x-> x.Δa[1], x-> x.Δa[2], x-> x.ref[1], x-> x.ref[2], x-> x.assoc]),
+	linecolor= p2[1:5]', linewidth= 1.6,
+	title="Association:\n changing co-occurrent assemblies",
+	xlabel="t", ylabel="ovelap", legend=:right,
+	labels= hcat("amᵢ & am₀","bmᵢ & bm₀",
+		"abmᵢ & am₀", "abmᵢ & bm₀",
+		"amᵢ & bmᵢ"),
+)
+end
 
 # ╔═╡ cd469ae2-74d4-439e-ad27-9f2ea999a13c
-md"The overlap rises to about 10% as reported in the paper. This is the association between the 2 assemblies."
+md"""
+The overlap $\texttt{amᵢ} \& \texttt{bmᵢ}$ rises to about $(
+round(measurements[30].assoc / mean([count(am₀),count(bm₀)]) * 100)|> Int
+)% of the number of active neurons.
+This is comparable to the figure reported in the paper (8-10%).
+
+#### Co-occurrence -> co-adaptation
+
+The change we observed in co-occurrent assemblies is called _association_.
+"""
 
 # ╔═╡ Cell order:
 # ╠═351fd01c-8047-4d61-89fb-ab05e3bea911
@@ -162,11 +189,12 @@ md"The overlap rises to about 10% as reported in the paper. This is the associat
 # ╠═52f798a4-a12c-462e-b07f-80a15cf7d159
 # ╠═0b396e36-3022-4c39-8e44-84ebd42d7b19
 # ╟─9f0f1131-52cc-4894-a1e0-7999fbd5234a
-# ╠═0e31f16f-f2c3-4497-ad0b-47d0fc393d4c
+# ╟─0e31f16f-f2c3-4497-ad0b-47d0fc393d4c
 # ╟─b2e2c302-eefd-41ec-97ca-aa302d62f2f1
 # ╠═2cc30337-2c48-476f-b45f-c2bfb788a3db
-# ╠═8330fc10-22c9-419b-887b-7d91ee580dc3
-# ╠═13e856d8-2eaf-4326-8026-b4e7edebf4c0
+# ╟─8330fc10-22c9-419b-887b-7d91ee580dc3
+# ╟─76758fe0-0136-44dc-9144-193aea2130f5
+# ╟─39437dfc-38cb-412f-8fc6-02fa3f646473
+# ╟─13e856d8-2eaf-4326-8026-b4e7edebf4c0
 # ╠═d109633b-1740-4da4-ad10-eb2f2f6527de
-# ╠═3097e22b-d4a2-42b5-90de-2b295d95cfd0
-# ╠═cd469ae2-74d4-439e-ad27-9f2ea999a13c
+# ╟─cd469ae2-74d4-439e-ad27-9f2ea999a13c
