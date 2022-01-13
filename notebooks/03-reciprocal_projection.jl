@@ -22,7 +22,7 @@ end
 md"""
 # Reciprocal projection
 
-This notebook implements *reciprocal projection* between 2 HTM regions, building on the construction of the *projection* operation in [projection.jl](./open?path=notebooks/projection.jl).
+This notebook implements *reciprocal projection* between 2 HTM regions, building on the construction of the *projection* operation in [01-intro_projection.jl](./open?path=notebooks/01-intro_projection.jl).
 
 Assembly calculus and HTM share the concept of "Region" as a modular circuit of neurons.
 HTM imposes specific structure in the Region.

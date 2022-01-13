@@ -22,11 +22,11 @@ end
 md"""
 ## Prerequisites
 
-- [projection.jl](./open?path=notebooks/projection.jl): into to Assembly calculus, defining "projection"
+- [01-intro_projection.jl](./open?path=notebooks/01-intro_projection.jl): into to Assembly calculus, defining "projection"
 
 # Association of 2 assemblies
 
-Using the **projection** operation shown in [projection.jl](./open?path=notebooks/projection.jl), we are now going to create 2 assemblies in the same region and see what happens if they fire *at the same time*.
+Using the **projection** operation shown in [01-intro_projection.jl](./open?path=notebooks/01-intro_projection.jl), we are now going to create 2 assemblies in the same region and see what happens if they fire *at the same time*.
 
 ### Regions
 
@@ -37,7 +37,7 @@ We'll use 3 regions in this experiment:
 
 ## Generating the assemblies
 
-We'll copy the Region configuration of [projection.jl](./open?path=notebooks/projection.jl):
+We'll copy the Region configuration of [01-intro_projection.jl](./open?path=notebooks/01-intro_projection.jl):
 """
 
 # ╔═╡ 77db44b5-01bd-46c3-afa5-60fca3743d92

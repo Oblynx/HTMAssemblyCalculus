@@ -25,7 +25,7 @@ reldistance(yᵢ,yⱼ)= 1 - count(yᵢ .& yⱼ) / min(count(yᵢ), count(yⱼ))
 Create a projection of feedforward activation `x` on region `R`.
 The region `R` adapts to the stimulation.
 
-See also [projection.jl](./open?path=notebooks/projection.jl)
+See also [01-intro_projection.jl](./open?path=notebooks/01-intro_projection.jl)
 """
 project!(R,x; time_to_convergence=30)= Iterators.drop((step!(R,x).active for t= 1:time_to_convergence), time_to_convergence-1)|> first
 
