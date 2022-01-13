@@ -12,6 +12,12 @@ begin
 	using Random, Chain, Setfield, Statistics, Plots, PlutoUI
 end
 
+# ╔═╡ 8adb2e56-320c-420f-9938-3c96b7f06f22
+"Include assembly operations library."
+module lib
+	include(joinpath(dirname(Base.active_project()), "src/assembly_operations.jl"))
+end
+
 # ╔═╡ 1bb0fcfc-2d7a-4634-9c93-263050c56a55
 md"""
 # Reciprocal projection
@@ -238,7 +244,8 @@ md"The 2 are almost identical, therefore this explanation of the first few steps
 
 # ╔═╡ Cell order:
 # ╠═0d3bf5f6-1171-11ec-0fee-c73bb459dc3d
-# ╟─1bb0fcfc-2d7a-4634-9c93-263050c56a55
+# ╠═8adb2e56-320c-420f-9938-3c96b7f06f22
+# ╠═1bb0fcfc-2d7a-4634-9c93-263050c56a55
 # ╠═70471bdc-660e-442e-b92a-f486abd120a7
 # ╟─7620c202-c6cf-44db-9cda-13642e28b45a
 # ╠═043f8da8-f17a-4486-9c49-7d5ecc75457f

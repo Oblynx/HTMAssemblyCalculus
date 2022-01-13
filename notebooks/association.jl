@@ -20,6 +20,10 @@ end
 
 # ╔═╡ ae5a3aa6-4071-4ab2-8130-700b583ec60d
 md"""
+## Prerequisites
+
+- [projection.jl](./open?path=notebooks/projection.jl): into to Assembly calculus, defining "projection"
+
 # Association of 2 assemblies
 
 Using the **projection** operation shown in [projection.jl](./open?path=notebooks/projection.jl), we are now going to create 2 assemblies in the same region and see what happens if they fire *at the same time*.

@@ -14,6 +14,14 @@ end
 
 # ╔═╡ 1bb0fcfc-2d7a-4634-9c93-263050c56a55
 md"""
+# What is Assembly calculus?
+
+Neuron Assembly Calculus is a computational framework for cognitive function. It describes a dynamical system of brain areas with random connections between excitatory neurons, with Hebbian plasticity, where only the top-k most activated neurons fire. From these properties **neuron assemblies** emerge: clusters of highly interconnected neurons in the same area, which can be created through programmatic operations. The authors probabilistically prove the convergence of these operations based on the model's structure and connectome (ref: [Neuron assembly calculus](https://www.pnas.org/content/117/25/14464), [A biologically plausible parser](https://direct.mit.edu/tacl/article/doi/10.1162/tacl_a_00432/108608/A-Biologically-Plausible-Parser)).
+
+## Hierarchical Temporal Memory
+
+Hierarchical Temporal Memory (HTM) is a biologically constrained model of brain computation. It too is a dynamical system of brain areas with excitatory neurons, Hebbian plasticity and top-k activation. However, the dynamics are more strongly constrained. For example, neurons are arranged in local circuits with local competition, and have multiple dendrites, where they receive less-stimulating input ([Why neurons have thousands of synapses](https://www.frontiersin.org/articles/10.3389/fncir.2016.00023/full)). This model of a brain area's dynamics underpins the [Thousand Brains theory](https://link.springer.com/article/10.1007/s42452-021-04715-0) that attempts to explain human neocortical computation.
+
 # Projection
 
 This notebook implements the simplest operation of assembly calculus, *projection*, with HTM.
