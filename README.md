@@ -34,14 +34,12 @@ We implement the basic operations of Assembly Calculus to explore the conditions
 We experiment in [Pluto notebooks], which provide a reproducible environment.
 The rendered HTML version is available at https://oblynx.github.io/HTMAssemblyCalculus
 
-One line of notebooks presents the fundamental operations of assembly calculus:
+The notebooks present the fundamental operations of assembly calculus and explore the properties and interactions of assemblies:
 
-1. [projection.jl](notebooks/projection.jl): show the most basic way to propagate assemblies to new brain regions
-2. reciprocal_projection.jl: [TBD] 2 regions interact bilaterally and stabilise a representation in each
-
-Other notebooks explore the properties and interactions of assemblies:
-
-- [association.jl](notebooks/association.jl): 2 assemblies co-occurring in the same region interact and start sharing neurons
+1. [intro_projection.jl](notebooks/01-intro_projection.jl): introduce assembly calculus and show the most basic way to propagate assemblies to new brain regions
+1. [association.jl](notebooks/02-association.jl): 2 assemblies co-occurring in the same region interact and start sharing neurons
+1. [reciprocal_projection.jl](notebooks/03-reciprocal_projection.jl): [TBD] 2 regions interact bilaterally and create bidirectionally-linked assemblies
+1. merge.jl: [TBD]
 
 
 
