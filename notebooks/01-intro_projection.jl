@@ -342,6 +342,43 @@ As long as we can assume:
 we can use "input regions" that produce neuronal stimulations as input to others, without having to apply the learning rules themselves.
 """
 
+# ╔═╡ 6a5298f1-dc8a-4422-b034-70df607c0456
+md"""
+## Assemblies as clusters
+
+A cluster is a set of nodes with higher interconnection than their connection to outside elements.
+We can define a new measure to probe the "clustering" of assemblies by comparing the interconnections to the external connections, that will be called "interconnectionDensity":
+"""
+
+# ╔═╡ 16fa7cce-a1db-4ffd-b769-3f0109305590
+"`interconnectionDensity(activation, region)` is the ratio of connected synapses whose pre- and post-synaptic neurons are inside the activation set versus those whose pre- synaptic neurons are outside it."
+interconnectionDensity(activation, region)= activation' * distalSynapses(region) * activation / ((.!activation)' * distalSynapses(region) * activation)
+
+# ╔═╡ e9a82f4d-1866-45a2-a7e0-a5e08ce5e0fb
+begin
+	train_interconnectionDensity!(R,x)= begin
+	    y= step!(R,x).active
+		interconnectionDensity(y,R)
+	end
+	Random.seed!(0)
+	reset!(B)
+	trainingcurveDensity= [train_interconnectionDensity!(B,x) for t= 1:1.5T]
+	md"This cell produces the training curve."
+end
+
+# ╔═╡ 03bf1a27-10bc-4362-aa76-4d24befeea4d
+begin
+	plot(trainingcurveDensity,
+		minorgrid=true, title="Assembly interconnection density training curve",
+		ylabel="interconnection density",
+		xlabel="t", label=:none
+	)
+	vline!([30,30],linecolor=:black, opacity=0.3, linestyle=:dash, label=:none)
+end
+
+# ╔═╡ 4426b294-1313-46df-9807-eb22e903151f
+md"By this measure, the assembly keeps becoming denser with more iterations."
+
 # ╔═╡ Cell order:
 # ╠═0d3bf5f6-1171-11ec-0fee-c73bb459dc3d
 # ╟─1bb0fcfc-2d7a-4634-9c93-263050c56a55
@@ -387,3 +424,8 @@ we can use "input regions" that produce neuronal stimulations as input to others
 # ╟─5bd5049c-de0d-4838-9c82-9cef604e650e
 # ╟─b886095d-d449-4334-99cf-44b800bb4fc4
 # ╟─8fdacada-55df-4abd-9501-7405e608529b
+# ╟─6a5298f1-dc8a-4422-b034-70df607c0456
+# ╟─16fa7cce-a1db-4ffd-b769-3f0109305590
+# ╟─e9a82f4d-1866-45a2-a7e0-a5e08ce5e0fb
+# ╟─03bf1a27-10bc-4362-aa76-4d24befeea4d
+# ╟─4426b294-1313-46df-9807-eb22e903151f
