@@ -176,11 +176,30 @@ This is comparable to the figure reported in the paper (8-10%).
 #### Co-occurrence -> co-adaptation
 
 The change we observed in co-occurrent assemblies is called _association_.
+
+# Pattern completion
+
+Given how densely interconnected assemblies are, another expected property is that they can complete their own activation.
+We will activate a random, small subset of the assembly and note how many other neurons of the assembly become active on the next timestep due to the recurrent connections between them (no learning).
 """
+
+# ╔═╡ b1d3f0a8-8f9a-42b3-8019-5a071f5d682a
+"`partialActivation(x,n)` activates a random subset of `n` neurons from activation `x`"
+partialActivation(x,n)= @chain [i for i= HierarchicalTemporalMemory.Truesof(x)] begin
+	shuffle(_)[1:n]
+	HierarchicalTemporalMemory.bitarray(_,length(a))
+end
+
+# ╔═╡ c2c56e4a-3707-4262-b7ee-779747be3c04
+"Stimulate region R with only a subset of input x. `p` is the ratio of the subset to the activation's cardinality."
+partialStimulation(x,R, p)=  R(partialActivation(x,Int(p*count(x)))).active
+
+# ╔═╡ 87caf94b-8b2e-4367-9795-2475163596d6
+partialStimulation(a,M, 0.2)|>count
 
 # ╔═╡ Cell order:
 # ╠═351fd01c-8047-4d61-89fb-ab05e3bea911
-# ╠═71fc74c6-317a-4418-8c0b-2ade268f7e6c
+# ╟─71fc74c6-317a-4418-8c0b-2ade268f7e6c
 # ╟─ae5a3aa6-4071-4ab2-8130-700b583ec60d
 # ╠═77db44b5-01bd-46c3-afa5-60fca3743d92
 # ╟─e3bda23f-6ec8-4977-9fad-e7cf99aa8bb3
@@ -190,7 +209,7 @@ The change we observed in co-occurrent assemblies is called _association_.
 # ╟─5e7753e3-794a-4aa1-ae4a-a9cbedc9fc52
 # ╠═fef94d49-27e4-4809-9804-270e9270f958
 # ╠═5fff0d6b-5098-4500-a521-c0553ff5a4ef
-# ╠═52f798a4-a12c-462e-b07f-80a15cf7d159
+# ╟─52f798a4-a12c-462e-b07f-80a15cf7d159
 # ╠═0b396e36-3022-4c39-8e44-84ebd42d7b19
 # ╟─9f0f1131-52cc-4894-a1e0-7999fbd5234a
 # ╟─0e31f16f-f2c3-4497-ad0b-47d0fc393d4c
@@ -201,4 +220,7 @@ The change we observed in co-occurrent assemblies is called _association_.
 # ╟─39437dfc-38cb-412f-8fc6-02fa3f646473
 # ╟─13e856d8-2eaf-4326-8026-b4e7edebf4c0
 # ╠═d109633b-1740-4da4-ad10-eb2f2f6527de
-# ╟─cd469ae2-74d4-439e-ad27-9f2ea999a13c
+# ╠═cd469ae2-74d4-439e-ad27-9f2ea999a13c
+# ╠═b1d3f0a8-8f9a-42b3-8019-5a071f5d682a
+# ╠═c2c56e4a-3707-4262-b7ee-779747be3c04
+# ╠═87caf94b-8b2e-4367-9795-2475163596d6
