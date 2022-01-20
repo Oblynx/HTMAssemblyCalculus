@@ -128,9 +128,10 @@ The figure below shows how the assemblies are diverging from their original set 
 
 # ╔═╡ 13e856d8-2eaf-4326-8026-b4e7edebf4c0
 begin
-	_M= deepcopy(M)
-	measurements= [stimulateMeasure!(_M) for t= 1:lib.T]
-	nothing
+	M_assoc= deepcopy(M)
+	Random.seed!(0)
+	T= 40   # time to converge
+	measurements= [stimulateMeasure!(M_assoc) for t= 1:T]
 end
 
 # ╔═╡ d109633b-1740-4da4-ad10-eb2f2f6527de
@@ -150,13 +151,47 @@ end
 # ╔═╡ cd469ae2-74d4-439e-ad27-9f2ea999a13c
 md"""
 The overlap $\texttt{amᵢ} \& \texttt{bmᵢ}$ rises to about $(
-round(measurements[30].assoc / mean([count(am₀),count(bm₀)]) * 100)|> Int
+round(measurements[T].assoc / mean([count(am₀),count(bm₀)]) * 100)|> Int
 )% of the number of active neurons.
 This is comparable to the figure reported in the paper (8-10%).
 
-#### Co-occurrence -> co-adaptation
+#### Co-occurrence → co-adaptation
 
 The change we observed in co-occurrent assemblies is called _association_.
+
+These are the associated assemblies in M:
+"""
+
+# ╔═╡ d8e424b5-5774-4902-b507-07161fdd7bcf
+begin
+	am= M_assoc(a).active
+	bm= M_assoc(b).active
+end
+
+# ╔═╡ e3583c97-962b-4517-b5ca-b8f469fab5ec
+md"""
+## Is association conserved through projection?
+
+Let's project `a,b` to a new region and see if the resulting assemblies have the same association, without any extra training.
+In such a case we would say that the association between the assemblies is conserved when they are viewed in a different brain area.
+
+The new region:
+"""
+
+# ╔═╡ 07c64927-66bd-43d9-b1c9-d05414ceb8df
+P= Region(lib.params_M.sp, lib.params_M.tm);
+
+# ╔═╡ aacd1964-b120-4bb4-8be5-a4b1f2908f82
+begin
+	reset!(P)
+	ap= lib.project!(P,am)
+	bp= lib.project!(P,bm)
+end
+
+# ╔═╡ 54753e1d-fa82-4bab-9ce5-f1c81cc3e133
+md"""
+The overlap of the resulting assemblies is **$(overlap(ap,bp))**.
+This property of assembly calculus is not satisfied by this HTM model.
 """
 
 # ╔═╡ Cell order:
@@ -176,9 +211,14 @@ The change we observed in co-occurrent assemblies is called _association_.
 # ╟─0e31f16f-f2c3-4497-ad0b-47d0fc393d4c
 # ╟─b2e2c302-eefd-41ec-97ca-aa302d62f2f1
 # ╠═2cc30337-2c48-476f-b45f-c2bfb788a3db
-# ╟─8330fc10-22c9-419b-887b-7d91ee580dc3
+# ╠═8330fc10-22c9-419b-887b-7d91ee580dc3
 # ╟─76758fe0-0136-44dc-9144-193aea2130f5
 # ╟─39437dfc-38cb-412f-8fc6-02fa3f646473
 # ╠═13e856d8-2eaf-4326-8026-b4e7edebf4c0
 # ╟─d109633b-1740-4da4-ad10-eb2f2f6527de
 # ╟─cd469ae2-74d4-439e-ad27-9f2ea999a13c
+# ╠═d8e424b5-5774-4902-b507-07161fdd7bcf
+# ╟─e3583c97-962b-4517-b5ca-b8f469fab5ec
+# ╠═07c64927-66bd-43d9-b1c9-d05414ceb8df
+# ╠═aacd1964-b120-4bb4-8be5-a4b1f2908f82
+# ╠═54753e1d-fa82-4bab-9ce5-f1c81cc3e133
