@@ -10,6 +10,7 @@ begin
 	Pkg.instantiate()
 	using HierarchicalTemporalMemory
 	using Random, Chain, Setfield, Statistics, Plots, PlutoUI
+	using Plots.PlotMeasures
 end
 
 # ╔═╡ 1bb0fcfc-2d7a-4634-9c93-263050c56a55
@@ -84,21 +85,31 @@ Minicolumns will be explained later.
 
 # ╔═╡ bbaf0a64-2471-4106-a27c-9dd5a4f58c7c
 begin
-	Nin= 1e3|> Int   # input size
-	Nn= 4e5          # number of neurons in each area
-	k= 10            # neurons per minicolumn
-	_Nc()= floor(Int,Nn/k) # number of minicolumns
-	sparsity()= 1/sqrt(_Nc());
+	Nin= 1e3|> Int        		# input size
+	Nn= 4e5             	    # number of neurons in each area
+	k= 20                 		# neurons per minicolumn
+	thresholds= ( 				# calibrate how many dendritic inputs needed to fire
+		tm_learn= 20,
+		tm_activate= 25,
+		tm_dendriteSynapses= 50,
+	)
+	learnrate= (
+		p⁺= .06,
+		p⁻= .02,
+	)
 end
 
-# ╔═╡ d4683829-b214-4d79-890d-bcc902bcef2b
-params_A= (
-	sp= SPParams(szᵢₙ=Nin, szₛₚ=_Nc(), s= sparsity(), prob_synapse=1e-3, enable_local_inhibit=false),
-	tm= TMParams(Nc=_Nc(), k=k, p⁺_01= .11, θ_stimulus_learn=15, θ_stimulus_activate= 22)
-)
-
-# ╔═╡ 5b0c7174-dc2b-4b28-8cda-fc2e8a37151c
-params_B= @set params_A.sp.szᵢₙ= params_A.tm.Nₙ
+# ╔═╡ 9c7c7c2b-b020-4a83-8917-909470331be7
+begin
+	_Nc()= floor(Int,Nn/k) 		# number of minicolumns
+	sparsity()= 1/sqrt(_Nc());
+	params_A= (
+		sp= SPParams(szᵢₙ=Nin, szₛₚ=_Nc(), s= sparsity(), prob_synapse=1e-3, enable_local_inhibit=false),
+		tm= TMParams(Nc=_Nc(), k=k, p⁺_01= learnrate.p⁺, p⁻_01= learnrate.p⁻, θ_stimulus_learn=thresholds.tm_learn, θ_stimulus_activate=thresholds.tm_activate, synapseSampleSize=thresholds.tm_dendriteSynapses)
+	)
+	# parameters for "merge" or "work" region, where assemblies will be formed
+	params_B= @set params_A.sp.szᵢₙ= params_A.tm.Nₙ
+end
 
 # ╔═╡ 334b271d-247c-465c-ae82-f91007a6d9d0
 md"The regions:"
@@ -151,7 +162,7 @@ Each experiment will run for `T` steps and we will run many experiments with dif
 """
 
 # ╔═╡ 1015f629-9818-4dbb-b574-97c552e96164
-T= 30; experiments=10;
+T= 40; experiments=6;
 
 # ╔═╡ 62d41be1-2970-48e1-b689-c2ecf1ab10ce
 md"""
@@ -202,7 +213,7 @@ expmedian(y)= median(y, dims=2);
 
 # ╔═╡ 456021aa-3dbf-4102-932f-43109905f9eb
 begin
-	plot(Δyₜₑ(), minorgrid=true, ylim= [0,.3], opacity=0.3, labels=nothing,
+	plot(Δyₜₑ(), minorgrid=true, ylim= [0,.5], opacity=0.3, labels=nothing,
 		title="Convergence of yₜ", ylabel="Relative distance per step Δyₜ",
 		xlabel="t")
 	plot!(Δȳₜ, linewidth=2, label="median Δȳ")
@@ -225,12 +236,12 @@ _Distal and proximal synapses_
 This has to do with the biggest deviation of HTM from assembly calculus.
 In assembly calculus, all synapses can trigger neurons to fire.
 In HTM there are 2 kinds of synapses: _proximal_ and _distal_.
-Only the proximal ones cause neurons to fire; distal synapses only cause neurons to win in competition among many that are proximally excited (keyword: *context*).
+Only the proximal ones cause neurons to fire; distal synapses only cause neurons to win in competition among many that are proximally excited in the same local circuit.
 
 Neurons are grouped in "minicolumns", wherein they share the same proximal synapses, differing only in distal synapses.
 Feedforward connectivity from A → B is through proximal synapses, while recurrent connectivity within B is through distal.
 Every time `x` fires the same large set of neurons (minicolumns) is primed to fire in B.
-In the beginning, before recurrent connections form through learning, every neuron in the primed minicolumns fires.
+In the beginning, before recurrent connections form through learning, every neuron in the primed minicolumns fires. In this case the minicolumn is **bursting**.
 Gradually, recurrent connections form, which cause only a few neurons (often 1) in each minicolumn to be "excited" through distal connections.
 But this distal excitement doesn't cause neurons to fire;
 only, if the minicolumn happens to be activated in the following step, the distally excited neuron will win an in-column competition and be the only one to fire.
@@ -243,9 +254,15 @@ activity_n(y)= count.(y)|> expmedian
 
 # ╔═╡ 85dfe3ed-cf70-4fde-a94a-f70c3fe4abf6
 begin
-	using Plots.PlotMeasures
-	plot(activity_n(y)/activity_n(y)[1], linecolor=:blue, foreground_color_subplot=:blue, xlabel="t", ylabel="Relative activity in B", rightmargin=14mm, legend=:none)
-	plot!(twinx(), Δȳₜ, linecolor=:red, foreground_color_subplot=:red, ylabel="median Δȳ", legend=:none)
+	plot(activity_n(y)/activity_n(y)[1], ylim=[0,1],
+		linecolor=:blue, xlabel="t", ylabel="Fraction of active neurons",
+		rightmargin=14mm, legend=:none, title="Less surprise → fewer active neurons",
+		minorgrid= true,
+	)
+	plot!(twinx(), Δȳₜ, linecolor=:red,
+		foreground_color_border=:red, foreground_color_axis=:red,
+		ylabel="Assembly convergence", legend=:none
+	)
 end
 
 # ╔═╡ 2b6d959f-63bb-4d42-a34d-70d93f6a1636
@@ -302,13 +319,13 @@ begin
 	end
 	Random.seed!(0)
 	reset!(B)
-	trainingcurve= [train_interconnection!(B,x) for t= 1:1.5T]
+	trainingcurve_interconnection= [train_interconnection!(B,x) for t= 1:1.5T]
 	md"This cell produces the training curve."
 end
 
 # ╔═╡ 5bd5049c-de0d-4838-9c82-9cef604e650e
 begin
-	plot(trainingcurve,
+	plot(trainingcurve_interconnection,
 		minorgrid=true, title="Assembly interconnection training curve",
 		ylabel="assembly interconnection",
 		xlabel="t", label=:none
@@ -379,6 +396,82 @@ end
 # ╔═╡ 4426b294-1313-46df-9807-eb22e903151f
 md"By this measure, the assembly keeps becoming denser with more iterations."
 
+# ╔═╡ 650281c0-bae5-441e-be11-72a22f00e19a
+md"""
+## Learning by Surprise
+
+A central element of HTM learning is _surprise_.
+In the following notebooks we'll present more elements of HTM's dynamics, but we can build on the previous mention of "minicolumns" to define a measure of how surprised the Region is with the input it receives at each point in time.
+This measure is the number of local circuits that are `bursting`, ie. have all their neurons excited instead of just a few.
+
+The distribution of excited neurons across local circuits in HTM carries a lot of information on how expected or ambiguous the input is.
+Surprising input leads to many minicolumns bursting.
+Ambiguous input leads to multiple neurons in many minicolumns firing, instead of just 1.
+The fraction of bursting minicolumns to active minicolumns can be a measure of surprise.
+"""
+
+# ╔═╡ e759fdf6-63db-43f6-931b-5d38085d8fe8
+bursting(R,c)= HierarchicalTemporalMemory.tm_activate(R.tm, c, R.tm.previous.Π)[2]
+
+# ╔═╡ 9b5adcab-9d9e-4b4f-af9d-d44ed2248f29
+surprise(R,x)= @chain x begin
+	R.sp
+    count(bursting(R,_)) / count(_)
+end
+
+# ╔═╡ f03586a0-7c45-4122-bb72-79bac82c1f13
+md"""
+We can monitor how surprised the region is as it follows a stimulus schedule that varies between 2 main stimuli:
+"""
+
+# ╔═╡ 63b3f98f-d8a6-4bb1-b3f7-0ea06e6769c4
+x2= @chain bitrand(Nin) A(_).active;
+
+# ╔═╡ d73ae1ad-b35f-4c6b-a668-05700e12ec2b
+stimulus= [
+	[x for t=1:T],
+	[x2 for t=1:T],
+	[x.|x2 for t=1:T],
+	[x for t=1:5],
+	[x2 for t=1:5],
+]|> Iterators.flatten|> collect;
+
+# ╔═╡ a43e8939-4e57-4307-a0f5-6a89b276df43
+begin
+	train_surprise!(R,x,x⁻)= begin
+	    step!(R,x).active
+		surprise(R,x)
+	end
+	Random.seed!(0)
+	reset!(B)
+	trainingcurveSurprise= [train_surprise!(B,stimulus[t],stimulus[max(t-1,1)]) for t= 1:length(stimulus)]
+	md"This cell produces the training curve."
+end
+
+# ╔═╡ 32e26605-df43-4d4a-a66e-1acc33b5da6d
+begin
+	plot(first.(trainingcurveSurprise),
+		minorgrid=true, title="Surprise as input varies",
+		ylabel="surprise",
+		xlabel="t", label=:none, rightmargin=12mm
+	)
+	textp(x,t)= (x,.98, text(t,9,:grey))
+	annotate!([
+		textp(.5T, "x*"),
+		textp(1.5T,"x₂*"),
+		textp(2.5T,"(x.|x₂)*"),
+		textp(3.5T+30, "5x,5x₂"),
+	])
+	sep!(x)= vline!([x,x], linecolor=:grey, linestyle=:dash, linewidth=.5, label=:none)
+	sep!(T); sep!(2T); sep!(3T)
+end
+
+# ╔═╡ 072d080f-8e3d-4a88-a45d-ad3731cdf97a
+md"""
+A full discussion of what the surprise curves show, especially for more experiments with sequences, are beyond the scope of the basic operations of assembly calculus.
+The important note though is that the region settles into a comfortable anticipation of `x`, and a reasonable expectation of `x₂`.
+"""
+
 # ╔═╡ Cell order:
 # ╠═0d3bf5f6-1171-11ec-0fee-c73bb459dc3d
 # ╟─1bb0fcfc-2d7a-4634-9c93-263050c56a55
@@ -386,8 +479,7 @@ md"By this measure, the assembly keeps becoming denser with more iterations."
 # ╟─7620c202-c6cf-44db-9cda-13642e28b45a
 # ╟─043f8da8-f17a-4486-9c49-7d5ecc75457f
 # ╠═bbaf0a64-2471-4106-a27c-9dd5a4f58c7c
-# ╠═d4683829-b214-4d79-890d-bcc902bcef2b
-# ╠═5b0c7174-dc2b-4b28-8cda-fc2e8a37151c
+# ╠═9c7c7c2b-b020-4a83-8917-909470331be7
 # ╟─334b271d-247c-465c-ae82-f91007a6d9d0
 # ╠═4833f12f-3eac-407c-a9ce-0d1aea216077
 # ╠═45d8e50b-8baa-4da2-8cd0-5c81d634c450
@@ -420,7 +512,7 @@ md"By this measure, the assembly keeps becoming denser with more iterations."
 # ╠═8e9003fa-c822-4508-9862-58a816d9242d
 # ╠═d4cfbfe7-ba6f-4936-8854-8d49277657d2
 # ╟─dfff3823-d750-40e1-9ddf-769cb2c7e575
-# ╠═ed61ded0-d665-46a9-bed8-cd83cb0a545a
+# ╟─ed61ded0-d665-46a9-bed8-cd83cb0a545a
 # ╟─5bd5049c-de0d-4838-9c82-9cef604e650e
 # ╟─b886095d-d449-4334-99cf-44b800bb4fc4
 # ╟─8fdacada-55df-4abd-9501-7405e608529b
@@ -429,3 +521,12 @@ md"By this measure, the assembly keeps becoming denser with more iterations."
 # ╟─e9a82f4d-1866-45a2-a7e0-a5e08ce5e0fb
 # ╟─03bf1a27-10bc-4362-aa76-4d24befeea4d
 # ╟─4426b294-1313-46df-9807-eb22e903151f
+# ╟─650281c0-bae5-441e-be11-72a22f00e19a
+# ╟─e759fdf6-63db-43f6-931b-5d38085d8fe8
+# ╟─9b5adcab-9d9e-4b4f-af9d-d44ed2248f29
+# ╟─f03586a0-7c45-4122-bb72-79bac82c1f13
+# ╠═63b3f98f-d8a6-4bb1-b3f7-0ea06e6769c4
+# ╠═d73ae1ad-b35f-4c6b-a668-05700e12ec2b
+# ╟─a43e8939-4e57-4307-a0f5-6a89b276df43
+# ╟─32e26605-df43-4d4a-a66e-1acc33b5da6d
+# ╟─072d080f-8e3d-4a88-a45d-ad3731cdf97a
