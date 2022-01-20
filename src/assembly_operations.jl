@@ -7,6 +7,15 @@ using InteractiveUtils
 # ╔═╡ 201a9fd8-7f37-48ea-b8ad-0cb1ac196c43
 using HierarchicalTemporalMemory
 
+# ╔═╡ bcee52a7-7156-4b8e-8000-f6ef2d7a7078
+using Setfield
+
+# ╔═╡ 8429596b-8765-4548-8300-b5449889395d
+using Chain
+
+# ╔═╡ da9364f7-cb53-45ca-962a-8eaeb5412682
+
+
 # ╔═╡ 0ada6b68-73d3-11ec-33d7-3b010e6c893e
 md"""
 # Assembly operations library
@@ -20,26 +29,106 @@ reldistance(yᵢ,yⱼ)= 1 - count(yᵢ .& yⱼ) / min(count(yᵢ), count(yⱼ))
 
 # ╔═╡ 4c15ea56-c8ec-4d3f-bdb6-ab36cf357b7e
 """
-    project!(R,x; time_to_convergence=30)
+    project!(R,x; time_to_convergence=40)
 
 Create a projection of feedforward activation `x` on region `R`.
 The region `R` adapts to the stimulation.
 
 See also [01-intro_projection.jl](./open?path=notebooks/01-intro_projection.jl)
 """
-project!(R,x; time_to_convergence=30)= Iterators.drop((step!(R,x).active for t= 1:time_to_convergence), time_to_convergence-1)|> first
+project!(R,x; time_to_convergence=40)= Iterators.drop((step!(R,x).active for t= 1:time_to_convergence), time_to_convergence-1)|> first
 
 # ╔═╡ 1598b575-7bd2-48b1-97ab-e1a41a8d1680
-"`interconnectionMeasure(activation, region)` counts the number of distal synapses between neurons of the given activation pattern"
-interconnectionMeasure(activation, region)= activation' * distalSynapses(region) * activation
+"`interconnectionMeasure(x,R)` counts the number of distal synapses between neurons of the given activation pattern `x` in region `R`."
+interconnectionMeasure(x, R)= x' * distalSynapses(R) * x
+
+# ╔═╡ 08fd02b1-c020-4b7f-86c7-bcfd5c9d1a40
+"`subset(x,p)` activates a random subset of neurons with ratio `p` from activation `x`. Note: `0≤p≤1`"
+subset(x,p)= @chain [i for i= HierarchicalTemporalMemory.Truesof(x)] begin
+	shuffle(_)[1 : Int(p*count(x))]
+	HierarchicalTemporalMemory.bitarray(_,length(a))
+end
+
+# ╔═╡ c199f632-b04e-4a29-acf1-de5ae63429fd
+"`overlap(x,y)` of 2 assemblies in the same region is the number of neurons that are active in both. Symbol: `x&y`"
+overlap(x,y)= count(x .& y)
+
+# ╔═╡ 29d5f907-a110-490c-94a0-fe707a96b99d
+"""
+    bursting(R,c)
+
+For each minicolumn, show if it is bursting (surprise) in response to minicolumn activation `c`.
+
+### Example
+
+Create an assembly and get the region's bursting minicolumns when presented with the same input again.
+```
+r= Region(params_input.sp, params_input.tm)
+aᵢₙ= bitrand(Nin)
+assembly= project!(r, aᵢₙ)
+bursting(r, r.sp(aᵢₙ))
+```
+"""
+bursting(R,c)= HierarchicalTemporalMemory.tm_activate(R.tm, c, R.tm.previous.Π)[2]
+
+# ╔═╡ 8f57d50e-dccc-4440-b252-a7f5ef34d084
+"`surprise(R,x)` counts the fraction of [`bursting`](@ref) minicolumns in response to region input `x`"
+surprise(R,x)= @chain x begin
+	R.sp
+    count(bursting(R,_)) / count(_)
+end
+
+# ╔═╡ 11d7cda5-4103-4a94-b7a7-1fbfbaaa8c5c
+md"""
+## HTM regions
+
+This section defines standard HTM regions that were tuned to work well with assembly calculus operations.
+
+First, we define parameters that have been tuned to work well with assembly calculus.
+"""
+
+# ╔═╡ 1cde9527-e7fc-4fc3-9759-7616b40ac2ad
+begin
+	Nin= 1e3|> Int        		# input size
+	Nn= 4e5             	    # number of neurons in each area
+	k= 20                 		# neurons per minicolumn
+	thresholds= ( 				# calibrate how many dendritic inputs needed to fire
+		tm_learn= 20,
+		tm_activate= 25,
+		tm_dendriteSynapses= 50,
+	)
+	learnrate= (
+		p⁺= .06,
+		p⁻= .02,
+	)
+end
+
+# ╔═╡ 25f3e7a1-21a6-4458-90af-349b6c3cbff4
+md"Then, we produce parameter arrays mostly with these values that are used in constructing HTM Regions."
+
+# ╔═╡ de50d108-6522-42d4-ae86-6d27b805c5d5
+begin
+	_Nc()= floor(Int,Nn/k) 		# number of minicolumns
+	sparsity()= 1/sqrt(_Nc());
+	params_input= (
+		sp= SPParams(szᵢₙ=Nin, szₛₚ=_Nc(), s= sparsity(), prob_synapse=1e-3, enable_local_inhibit=false),
+		tm= TMParams(Nc=_Nc(), k=k, p⁺_01= learnrate.p⁺, p⁻_01= learnrate.p⁻, θ_stimulus_learn=thresholds.tm_learn, θ_stimulus_activate=thresholds.tm_activate, synapseSampleSize=thresholds.tm_dendriteSynapses)
+	)
+	# parameters for "merge" or "work" region, where assemblies will be formed
+	params_M= @set params_input.sp.szᵢₙ= params_input.tm.Nₙ
+end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
+Chain = "8be319e6-bccf-4806-a6f7-6fae938471bc"
 HierarchicalTemporalMemory = "db654dba-670c-566a-9226-64313b881ded"
+Setfield = "efcf1570-3423-57d1-acb7-fd33fddbac46"
 
 [compat]
+Chain = "~0.4.10"
 HierarchicalTemporalMemory = "~0.3.0"
+Setfield = "~0.8.1"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -540,9 +629,20 @@ uuid = "3f19e933-33d8-53b3-aaab-bd5110c3b7a0"
 
 # ╔═╡ Cell order:
 # ╠═201a9fd8-7f37-48ea-b8ad-0cb1ac196c43
-# ╠═0ada6b68-73d3-11ec-33d7-3b010e6c893e
+# ╠═bcee52a7-7156-4b8e-8000-f6ef2d7a7078
+# ╠═8429596b-8765-4548-8300-b5449889395d
+# ╠═da9364f7-cb53-45ca-962a-8eaeb5412682
+# ╟─0ada6b68-73d3-11ec-33d7-3b010e6c893e
 # ╠═ea459f12-2b04-41a8-946f-a3ac3d9d040c
 # ╠═4c15ea56-c8ec-4d3f-bdb6-ab36cf357b7e
 # ╠═1598b575-7bd2-48b1-97ab-e1a41a8d1680
+# ╠═08fd02b1-c020-4b7f-86c7-bcfd5c9d1a40
+# ╠═c199f632-b04e-4a29-acf1-de5ae63429fd
+# ╟─29d5f907-a110-490c-94a0-fe707a96b99d
+# ╠═8f57d50e-dccc-4440-b252-a7f5ef34d084
+# ╟─11d7cda5-4103-4a94-b7a7-1fbfbaaa8c5c
+# ╠═1cde9527-e7fc-4fc3-9759-7616b40ac2ad
+# ╟─25f3e7a1-21a6-4458-90af-349b6c3cbff4
+# ╠═de50d108-6522-42d4-ae86-6d27b805c5d5
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
