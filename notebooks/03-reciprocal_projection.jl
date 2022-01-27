@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.17.5
+# v0.17.7
 
 using Markdown
 using InteractiveUtils
@@ -245,10 +245,10 @@ md"The 2 are almost identical, therefore this explanation of the first few steps
 # ╔═╡ Cell order:
 # ╠═0d3bf5f6-1171-11ec-0fee-c73bb459dc3d
 # ╠═8adb2e56-320c-420f-9938-3c96b7f06f22
-# ╠═1bb0fcfc-2d7a-4634-9c93-263050c56a55
+# ╟─1bb0fcfc-2d7a-4634-9c93-263050c56a55
 # ╠═70471bdc-660e-442e-b92a-f486abd120a7
 # ╟─7620c202-c6cf-44db-9cda-13642e28b45a
-# ╠═043f8da8-f17a-4486-9c49-7d5ecc75457f
+# ╟─043f8da8-f17a-4486-9c49-7d5ecc75457f
 # ╠═bbaf0a64-2471-4106-a27c-9dd5a4f58c7c
 # ╠═d4683829-b214-4d79-890d-bcc902bcef2b
 # ╠═5b0c7174-dc2b-4b28-8cda-fc2e8a37151c
@@ -257,7 +257,7 @@ md"The 2 are almost identical, therefore this explanation of the first few steps
 # ╠═45d8e50b-8baa-4da2-8cd0-5c81d634c450
 # ╟─91fa8319-1702-4cad-8ae8-0c1ed51a7bb8
 # ╠═3ee589ed-0fe0-4328-88e8-d2fb6a98bf28
-# ╟─6790a86a-3990-4c6a-878f-c18779f8d48d
+# ╠═6790a86a-3990-4c6a-878f-c18779f8d48d
 # ╠═5458c6ae-ace2-4928-8a9b-ef919a1e97cb
 # ╟─6b56422c-5f9b-41d8-a080-ef5ca3d7db7b
 # ╠═3229da2a-92f3-4064-bb80-cbd9f5523d7d
