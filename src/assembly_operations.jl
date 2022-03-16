@@ -13,9 +13,6 @@ using Setfield
 # ╔═╡ 8429596b-8765-4548-8300-b5449889395d
 using Chain
 
-# ╔═╡ da9364f7-cb53-45ca-962a-8eaeb5412682
-
-
 # ╔═╡ 0ada6b68-73d3-11ec-33d7-3b010e6c893e
 md"""
 # Assembly operations library
@@ -25,6 +22,18 @@ It focuses on the assembly operations.
 """
 
 # ╔═╡ ea459f12-2b04-41a8-946f-a3ac3d9d040c
+"""
+    reldistance(yᵢ,yⱼ)
+
+Relative distance between 2 activations bounded in ``[0,1]``:
+``
+yᵢ = yⱼ ⇔ reldistance(yᵢ,yⱼ) = 0
+``
+and
+``
+yᵢ ⊥ yⱼ ⇔ reldistance(yᵢ,yⱼ) = 1
+``
+"""
 reldistance(yᵢ,yⱼ)= 1 - count(yᵢ .& yⱼ) / min(count(yᵢ), count(yⱼ))
 
 # ╔═╡ 4c15ea56-c8ec-4d3f-bdb6-ab36cf357b7e
@@ -41,6 +50,10 @@ project!(R,x; time_to_convergence=40)= Iterators.drop((step!(R,x).active for t= 
 # ╔═╡ 1598b575-7bd2-48b1-97ab-e1a41a8d1680
 "`interconnectionMeasure(x,R)` counts the number of distal synapses between neurons of the given activation pattern `x` in region `R`."
 interconnectionMeasure(x, R)= x' * distalSynapses(R) * x
+
+# ╔═╡ 779253f0-0526-4ea4-8eb3-5aa0de55c14c
+"`interconnectionDensity(x,R)` is the ratio of connected synapses whose pre- and post-synaptic neurons are inside the activation set versus those whose pre- synaptic neurons are outside it."
+interconnectionDensity(x,R)= x' * distalSynapses(R) * x / ((.!x)' * distalSynapses(R) * x)
 
 # ╔═╡ 08fd02b1-c020-4b7f-86c7-bcfd5c9d1a40
 "`subset(x,p)` activates a random subset of neurons with ratio `p` from activation `x`. Note: `0≤p≤1`"
@@ -90,16 +103,22 @@ First, we define parameters that have been tuned to work well with assembly calc
 # ╔═╡ 1cde9527-e7fc-4fc3-9759-7616b40ac2ad
 begin
 	Nin= 1e3|> Int        		# input size
-	Nn= 4e5             	    # number of neurons in each area
-	k= 20                 		# neurons per minicolumn
-	thresholds= ( 				# calibrate how many dendritic inputs needed to fire
-		tm_learn= 20,
-		tm_activate= 25,
-		tm_dendriteSynapses= 50,
+	Nn= 20e4             	    # number of neurons in each area
+	k= 50                 		# neurons per minicolumn
+	# calibrate how many dendritic inputs needed to fire
+	# these are related to the size of patterns, which ranges between
+	# `_Nc()*sparsity() * [1..k]` (from perfectly unambiguous to bursting)
+	thresholds= (
+		tm_learn= 18,
+		tm_activate= 30,
+		tm_dendriteSynapses= 65,
 	)
 	learnrate= (
-		p⁺= .06,
-		p⁻= .02,
+		dist_p⁺= .009,
+		dist_p⁻= .010,
+		dist_LTD_p⁻= .0006,
+		prox_p⁺= .10,
+		prox_p⁻= .04,
 	)
 end
 
@@ -111,12 +130,21 @@ begin
 	_Nc()= floor(Int,Nn/k) 		# number of minicolumns
 	sparsity()= 1/sqrt(_Nc());
 	params_input= (
-		sp= SPParams(szᵢₙ=Nin, szₛₚ=_Nc(), s= sparsity(), prob_synapse=1e-3, enable_local_inhibit=false),
-		tm= TMParams(Nc=_Nc(), k=k, p⁺_01= learnrate.p⁺, p⁻_01= learnrate.p⁻, θ_stimulus_learn=thresholds.tm_learn, θ_stimulus_activate=thresholds.tm_activate, synapseSampleSize=thresholds.tm_dendriteSynapses)
+		sp= SPParams(szᵢₙ=Nin, szₛₚ=_Nc(), s= sparsity(), prob_synapse=5e-3,
+			p⁺_01= learnrate.prox_p⁺, p⁻_01= learnrate.prox_p⁻,
+			enable_local_inhibit=false),
+		tm= TMParams(Nc=_Nc(), k=k,
+			p⁺_01= learnrate.dist_p⁺, p⁻_01= learnrate.dist_p⁻, LTD_p⁻_01= learnrate.dist_LTD_p⁻,
+			θ_stimulus_learn=thresholds.tm_learn,
+			θ_stimulus_activate=thresholds.tm_activate,
+			synapseSampleSize=thresholds.tm_dendriteSynapses)
 	)
 	# parameters for "merge" or "work" region, where assemblies will be formed
 	params_M= @set params_input.sp.szᵢₙ= params_input.tm.Nₙ
 end
+
+# ╔═╡ 6cf24775-ffcd-4c05-8219-d4850d21cefa
+_Nc() .* (1,sparsity())
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -631,11 +659,11 @@ uuid = "3f19e933-33d8-53b3-aaab-bd5110c3b7a0"
 # ╠═201a9fd8-7f37-48ea-b8ad-0cb1ac196c43
 # ╠═bcee52a7-7156-4b8e-8000-f6ef2d7a7078
 # ╠═8429596b-8765-4548-8300-b5449889395d
-# ╠═da9364f7-cb53-45ca-962a-8eaeb5412682
 # ╟─0ada6b68-73d3-11ec-33d7-3b010e6c893e
 # ╠═ea459f12-2b04-41a8-946f-a3ac3d9d040c
 # ╠═4c15ea56-c8ec-4d3f-bdb6-ab36cf357b7e
 # ╠═1598b575-7bd2-48b1-97ab-e1a41a8d1680
+# ╠═779253f0-0526-4ea4-8eb3-5aa0de55c14c
 # ╠═08fd02b1-c020-4b7f-86c7-bcfd5c9d1a40
 # ╠═c199f632-b04e-4a29-acf1-de5ae63429fd
 # ╟─29d5f907-a110-490c-94a0-fe707a96b99d
@@ -644,5 +672,6 @@ uuid = "3f19e933-33d8-53b3-aaab-bd5110c3b7a0"
 # ╠═1cde9527-e7fc-4fc3-9759-7616b40ac2ad
 # ╟─25f3e7a1-21a6-4458-90af-349b6c3cbff4
 # ╠═de50d108-6522-42d4-ae86-6d27b805c5d5
+# ╠═6cf24775-ffcd-4c05-8219-d4850d21cefa
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
