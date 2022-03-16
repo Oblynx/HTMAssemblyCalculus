@@ -196,7 +196,7 @@ This property of assembly calculus is not satisfied by this HTM model.
 
 # ╔═╡ Cell order:
 # ╠═351fd01c-8047-4d61-89fb-ab05e3bea911
-# ╟─71fc74c6-317a-4418-8c0b-2ade268f7e6c
+# ╠═71fc74c6-317a-4418-8c0b-2ade268f7e6c
 # ╟─ae5a3aa6-4071-4ab2-8130-700b583ec60d
 # ╟─e3bda23f-6ec8-4977-9fad-e7cf99aa8bb3
 # ╠═d5286246-3265-421e-b724-13b963f09887

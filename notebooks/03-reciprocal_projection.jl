@@ -10,6 +10,7 @@ begin
 	Pkg.instantiate()
 	using HierarchicalTemporalMemory
 	using Random, Chain, Setfield, Statistics, Plots, PlutoUI
+	using Images
 end
 
 # ╔═╡ 8adb2e56-320c-420f-9938-3c96b7f06f22
@@ -27,24 +28,72 @@ This notebook implements *reciprocal projection* between 2 HTM regions, building
 Projection of assembly `x` from region A -> B is the operation where a stable assembly `y` is generated in B that fires consistently when `x` fires in A.
 Reciprocal projection adds the requirement that *`x` fire in A when `y` fires in B.*
 
-Instead of activating `x` externally, this will employ 3 Regions:
+We will activate `x` externally and employ 2 regions `A, B` projecting bidirectionally to each other.
 
-- input region `I`
-- regions `A, B` with recurrent internal connections
-
-The only difference between projection and reciprocal projection is the feedforward connection `B → A`
+The only difference between projection and reciprocal projection is the proximal ("feedforward") connection `B → A`
 
 ```
-  I --> A --> B
-        ↑     |
-        +-----+
+  in --> A --> B --> out
+         ↑     |
+         +-----+
 ```
 
 ## Convergence
 
 We will implement this simple algorithm with HTM regions and check the convergence of `x,y`.
 If `xₜ and yₜ` both converge to a limit circle as $t→∞$ (practically 10-100 steps) of a small enough radius, we will consider the projection implemented.
+
+## Network to connect Regions
+
+To implement this circuit diagram we're going to use an HTM `Network`, comprising the regions A,B and the adjacency matrix of their connections.
+Let's create the regions and the network.
 """
+
+# ╔═╡ 5420952d-4e11-469a-ab1e-67ed8fff6c4a
+I= Region(lib.params_input.sp, lib.params_input.tm);
+
+# ╔═╡ 1caa5db3-b761-43f9-bbb2-66c3b4779b56
+A= Region(lib.params_M.sp, lib.params_M.tm);
+
+# ╔═╡ e7fb5232-502d-4c94-8250-4fff4b7b4176
+B= Region(lib.params_M.sp, lib.params_M.tm);
+
+# ╔═╡ becb08ed-fbec-4047-b8d3-a29cae874114
+md"""
+The network takes a vector with the regions A,B and an adjacency matrix with their connections.
+The circuit diagram
+```
+  in --> A --> B --> out
+         ↑     |
+         +-----+
+```
+
+would suggest the adjacency matrix
+
+$(Gray.([
+	0 1
+	1 0
+]))
+
+However, the network also needs to connect 2 extra "virtual" regions, the input and output. This works by appending 2 extra elements to the end of the adjacency matrix, connecting the 3rd row (input) to region 1 (A) and connecting region 2 (B) to the output:
+
+$(Gray.([
+	0 1 0 0
+    1 0 0 1
+	1 0 0 0
+	0 0 0 0
+]))
+
+This is the adjacency matrix that we'll use for the network.
+"""
+
+# ╔═╡ 2fedb87d-85ab-4c11-8e6c-2494a3311b38
+reciprocal_net= Network([A,B], connect_forward= [
+	0 1 0 0
+	1 0 0 1
+	1 0 0 0
+	0 0 0 0
+]);
 
 # ╔═╡ 6790a86a-3990-4c6a-878f-c18779f8d48d
 md"""
@@ -52,180 +101,205 @@ Now all we need to do is to repeatedly stimulate `A` with `a`, propagating the s
 In each timestep, `A` will produce a `xₜ` and `B` a `yₜ`:
 """
 
-# ╔═╡ 2b6d959f-63bb-4d42-a34d-70d93f6a1636
-md"""
-The difference in activity is much less than `k` (neurons per minicolumn), but it is still evident.
-This means that after convergence there are still many neurons firing in each minicolumn;
-in fact, the average number of neurons firing in each active minicolumn should be close to the region's activity in the previous plot.
-"""
-
-# ╔═╡ dfa42c2b-6424-458a-a589-a1c5429ec4db
-B= Region(lib.params_M.sp, lib.params_M.tm);
-
 # ╔═╡ 043f8da8-f17a-4486-9c49-7d5ecc75457f
 md"""
-#### Regions
+## Stimulating the network
 
-Let's define the HTM regions I, A, B with the same parameter values that were tuned for the projection operation.
+Stimulating the network with the familiar `step!` function means to present the stimulus at the input node and let each region process the inputs presently available to it at each edge of the network.
+
+Presenting `a` at the input node with `reciprocal_net(a)` is going to be equivalent to presenting `a` to region A, or `A(a)`. However, in the case of the network we will also calculate the activation of `B` with the input that is available to it, which is initially 0.
+
+With each step, the signal is propagating through the network by 1 edge. If we present again `a` at step 2, the external input of `A` will stay the same, but the `B` will now be activated by `A(a)`.
+Taking the reciprocal connection into account, the recurrent equations of the network for time $t$ are as follows.
+With $A$ we symbolize the activation function of a region and $Aₜ$ is its output at time $t$.
+$a|b$ means bitwise OR. 
+
+``Aₜ = A(a | Bₜ₋₁)``
+
+``Bₜ = B(Aₜ₋₁)``
+
+The same propagation rules apply for the `step!` function, which simply calls `step!` on each region.
+
+#### Experiment
 """
-
-# ╔═╡ 354b27e3-75b4-45ce-9b45-88b8c110039f
-I= Region(lib.params_input.sp, lib.params_input.tm);
 
 # ╔═╡ 3ee589ed-0fe0-4328-88e8-d2fb6a98bf28
-a= @chain bitrand(lib.Nin) I(_).active;
-
-# ╔═╡ 3a5e3aa0-e34e-457c-a405-9bc95cd88910
-activity_per_active_minicolumn(y)= @chain y reshape(_,k,:) count(_, dims=1) filter(x->x>0, _) mean
-
-# ╔═╡ 62d41be1-2970-48e1-b689-c2ecf1ab10ce
-md"`y[T,experiments]` is the entire history of `yᵢ`"
-
-# ╔═╡ 44343331-60aa-4985-b0c2-c7e9bc7885cd
-HierarchicalTemporalMemory.gateCombine([a,a])|>typeof
-
-# ╔═╡ bbaf0a64-2471-4106-a27c-9dd5a4f58c7c
-A= Region(lib.params_M.sp, lib.params_M.tm)
-
-# ╔═╡ 3df40867-674b-405a-a05c-0733a4caaa67
-md"The 2 are almost identical, therefore this explanation of the first few steps in the graph seems to hold up."
-
-# ╔═╡ a0971202-45c7-4947-a6f6-8ba1301d0316
-reduce((a,b)-> HierarchicalTemporalMemory.bitVcat(a,b), [a,a])
-
-# ╔═╡ 6a20715a-9dc9-461a-b6a2-f02522e277f0
-md"We calculate the $Δyₜ=\texttt{reldistance}(yₜ,yₜ₊₁) ∀ t∈\{1..T-1\}$ and the experiment median. This metric will show whether `yₜ` converges."
+a()= @chain bitrand(lib.Nin) I(_).active;
 
 # ╔═╡ bcba6521-1cfb-4ee7-a421-bd1def3770a4
-T= 10; experiments= 1;
+T= 30; experiments= 5; net_T= 4T
 
-# ╔═╡ 7670ffbc-3621-4acb-b1e3-b56668470c24
-y= Matrix(undef,T,experiments);
+# ╔═╡ 57f45bc3-4978-4abc-8763-0bcd9ce62542
+md"""
+Repeatedly stimulate the network with `a`. If `T` is the latency of the projection operation, an estimated time for convergence should be around `2T` (in fact, this is seen when simulating a feedforward network with 2 regions).
+We will capture the activation of each region over time and plot their convergence.
+We will also capture the interconnectivity and other metrics used in the Projection notebook.
 
-# ╔═╡ d08cce9d-dd9c-4530-82ae-bf1db8be3281
-# Send SDRs from A -> B
-with_terminal() do
-	for e= 1:experiments
-	  @info "experiment $e"
-	  x= @chain bitrand(Nin) A(_).active;
-	  reset!(B)
-	  for t= 1:T
-		t%10==0 && @info "t=$t"
-		y[t,e]= step!(B,x).active
-	  end
-	end
-end
+Let's collect the data:
+"""
 
-# ╔═╡ e63a5860-587c-4aff-91be-a894b3443943
-Δyₜₑ()= [reldistance(y[i,e], y[i+1,e]) for i=1:T-1, e=1:experiments];
-
-# ╔═╡ 3229da2a-92f3-4064-bb80-cbd9f5523d7d
+# ╔═╡ 274fe051-0317-4651-b6eb-7c7824b7c5b1
 begin
-	reset!(A)
-	reset!(B)
-	for t= 1:T
-		xₜ= step!(A, [a,a])
+	# activation[t][region] and connectivity metrics
+	stepRepeatedly!(net,a)= [ begin
+		step!(net,a)
+		(
+			activity= net.region_α₋[:],
+			interconnected= lib.interconnectionMeasure.(net.region_α₋, net.regions),
+			density= lib.interconnectionDensity.(net.region_α₋, net.regions),
+		)
+	end for t= 1:net_T ]
+	experiment(id,a)= stepRepeatedly!(deepcopy(reciprocal_net), a)
+	reset!(reciprocal_net)
+	α= @chain begin
+	  @sync [Threads.@spawn experiment(e,a()) for e= 1:experiments]
+	  fetch.(_)
 	end
 end
 
-# ╔═╡ 56e0da0b-8858-459a-9aae-0eba4797cc06
+# ╔═╡ d4fa5204-79ab-4dd0-88be-92b65a546580
 md"""
-## Understanding the convergence plot
-
-As we see from the median (thick line), the experiments **converge after step $t=20$**.
-This is double what assembly theory expects (10 steps), but it might be sensitive to the model's parameters.
-
-So far, it looks like the "projection" operation has been implemented with HTM successfully.
-
-#### Why is the distance exactly 0 in the beginning?
-
-_Distal and proximal synapses_
-
-This has to do with the biggest deviation of HTM from assembly calculus.
-In assembly calculus, all synapses can trigger neurons to fire.
-In HTM there are 2 kinds of synapses: _proximal_ and _distal_.
-Only the proximal ones cause neurons to fire; distal synapses only cause neurons to win in competition among many that are proximally excited (keyword: *context*).
-
-Neurons are grouped in "minicolumns", wherein they share the same proximal synapses, differing only in distal synapses.
-Feedforward connectivity from A → B is through proximal synapses, while recurrent connectivity within B is through distal.
-Every time `x` fires the same large set of neurons (minicolumns) is primed to fire in B.
-In the beginning, before recurrent connections form through learning, every neuron in the primed minicolumns fires.
-Gradually, recurrent connections form, which cause only a few neurons (often 1) in each minicolumn to be "excited" through distal connections.
-But this distal excitement doesn't cause neurons to fire;
-only, if the minicolumn happens to be activated in the following step, the distally excited neuron will win an in-column competition and be the only one to fire.
-
-If this hypothesis is correct, then we expect to see a significant drop in the number of active neurons in B after the first few steps. Let's test this.
+The experiment results `α` have 3 indices and a selector: `α[experiment][time]{activity,robustness}[region]`.
+Let's split them into 2 variables for each region, `A -> x`, `B -> y` with indices `x[experiment][time]`.
 """
 
-# ╔═╡ 5e0ac810-1689-4bfb-88a8-85504cd821b6
-md"""
-### Repeated stimulation
+# ╔═╡ b4b282ee-83d0-41ce-8f7c-eca27e13b78a
+parseMeasurements(x,field,region)= [ map(e-> map(t-> getproperty(t,field)[region], e),x)[e][t] for t=1:net_T, e=1:experiments];
 
-To plot the convergence of $yᵢ$ we will now produce them repeatedly and store them.
-Each experiment will run for `T` steps and we will run 15 experiments with different `x`.
+# ╔═╡ 287e2f5d-22a6-40eb-a534-2e0c1de744b2
+begin
+	x= parseMeasurements(α,:activity,1);
+	x_interconnected= parseMeasurements(α,:interconnected,1);
+	x_density= parseMeasurements(α,:density,1);
+	y= parseMeasurements(α,:activity,2);
+	y_interconnected= parseMeasurements(α,:interconnected,2);
+	nothing
+end
+
+# ╔═╡ addb6923-725a-451e-a1fb-af35c3cd6aee
+md"""
+The convergence curve:
 """
 
-# ╔═╡ c866c71e-5dce-4af1-84bb-045815d1acb9
+# ╔═╡ 396e1062-1acc-4aa0-ac29-fa245b0f2f46
+Δy= [lib.reldistance(y[i,e], y[i+1,e]) for i=1:net_T-1, e=1:experiments];
+
+# ╔═╡ 5e4444cd-41bc-4720-a18c-657c8b7ee3ee
+Δx= [lib.reldistance(x[i,e], x[i+1,e]) for i=1:net_T-1, e=1:experiments];
+
+# ╔═╡ ce3ded6c-889e-4db1-b40c-0548be4397fd
 expmedian(y)= median(y, dims=2);
 
-# ╔═╡ cf83549c-03b1-4f7d-be29-d3a29da3e8f7
-activity_n(y)= count.(y)|> expmedian
-
-# ╔═╡ 5ec611f4-d3ea-4c5d-9221-4dcf2da3e18c
-abs.(expmedian(activity_per_active_minicolumn.(y)) .- activity_n(y)/activity_n(y)[1]*k)|>sum
-
-# ╔═╡ 75560584-1631-4c93-8808-e269d345e1c8
-Δȳₜ= Δyₜₑ()|> expmedian;
-
-# ╔═╡ 85dfe3ed-cf70-4fde-a94a-f70c3fe4abf6
+# ╔═╡ befd54da-edf0-4fd2-9cbd-752fed1fd60c
 begin
-	using Plots.PlotMeasures
-	plot(activity_n(y)/activity_n(y)[1], linecolor=:blue, foreground_color_subplot=:blue, ylabel="Relative activity in B", rightmargin=14mm, legend=:none)
-	plot!(twinx(), Δȳₜ, linecolor=:red, foreground_color_subplot=:red, ylabel="median Δȳ", legend=:none)
-end
-
-# ╔═╡ 456021aa-3dbf-4102-932f-43109905f9eb
-begin
-	plot(Δyₜₑ(), minorgrid=true, ylim= [0,.3], opacity=0.3, labels=nothing,
+	plot(Δy, minorgrid=true, ylim= [0,1], opacity=0.3, labels=nothing,
 		title="Convergence of yₜ", ylabel="Relative distance per step Δyₜ",
 		xlabel="t")
-	plot!(Δȳₜ, linewidth=2, label="median Δȳ")
+	plot!(Δy|>expmedian, linewidth=2, label="median Δȳ")
 	hline!(zeros(T) .+ .05, linecolor=:black, linestyle=:dash, label="5% limit")
 end
 
-# ╔═╡ 91fa8319-1702-4cad-8ae8-0c1ed51a7bb8
+# ╔═╡ c3f555dc-e80b-4d2c-9969-fd617219aee3
+normalize(v; dims=1)= (v .- minimum(v,dims=dims)) ./ maximum(v,dims=dims)
+
+# ╔═╡ 2a119b92-d2e2-4799-ae32-a66f00d4edd4
+begin
+	plot(hcat(x_interconnected|> expmedian|> normalize,
+		y_interconnected|> expmedian|> normalize),
+		minorgrid=true, title="Assembly interconnection density training curve",
+		ylabel="interconnection density",
+		xlabel="t", label=:none
+	)
+	vline!([30,30],linecolor=:black, opacity=0.3, linestyle=:dash, label=:none)
+end
+
+# ╔═╡ 1a1c1ad8-5266-4f70-87f5-adb88828b1e6
 md"""
-This is the input activation `a`, which will stimulate the reciprocal projection:
+## Pretraining of `x`
+
+Create first assembly `x` in `A`, then train network.
 """
+
+# ╔═╡ 49baa0cc-cb74-4f0d-a966-b153013a649f
+begin
+	reset!(reciprocal_net)
+	experimentPre(id)= begin
+		net= deepcopy(reciprocal_net)
+		a_pre= a()
+		lib.project!(net.regions[1],a_pre)
+		stepRepeatedly!(net, a_pre)
+	end
+	α_pretrain= @chain begin
+	  @sync [Threads.@spawn experimentPre(e) for e= 1:experiments]
+	  fetch.(_)
+	end
+end
+
+# ╔═╡ ff5993c2-8705-4e62-afe7-5aab0549fc18
+begin
+	x_pre= parseMeasurements(α_pretrain,:activity,1);
+	x_pre_interconnected= parseMeasurements(α_pretrain,:interconnected,1);
+	x_pre_density= parseMeasurements(α_pretrain,:density,1);
+	y_pre= parseMeasurements(α_pretrain,:activity,2);
+	y_pre_interconnected= parseMeasurements(α_pretrain,:interconnected,2);
+	nothing
+end
+
+# ╔═╡ 867d0540-62a1-4675-9ef5-8e712b1a82c4
+Δx_pre= [lib.reldistance(x_pre[i,e], x_pre[i+1,e]) for i=1:net_T-1, e=1:experiments];
+
+# ╔═╡ 9e06b199-b05b-4c0b-b075-a98e526704c2
+Δy_pre= [lib.reldistance(y_pre[i,e], y_pre[i+1,e]) for i=1:net_T-1, e=1:experiments];
+
+# ╔═╡ 9e7f3181-6de9-4cf9-b536-e82f8d02db9f
+begin
+	plot(Δx_pre, minorgrid=true, ylim= [0,1], opacity=0.3, labels=nothing,
+		title="Convergence of yₜ", ylabel="Relative distance per step Δyₜ",
+		xlabel="t")
+	plot!(Δx_pre|>expmedian, linewidth=2, label="median Δȳ")
+	hline!(zeros(T) .+ .05, linecolor=:black, linestyle=:dash, label="5% limit")
+end
+
+# ╔═╡ 998f3cb3-1098-4262-8216-d5f48b72d6bd
+begin
+	plot(hcat(x_pre_interconnected|> expmedian|> normalize,
+		y_pre_interconnected|> expmedian|> normalize),
+		minorgrid=true, title="Assembly interconnection density training curve",
+		ylabel="interconnection density",
+		xlabel="t", label=:none
+	)
+	vline!([30,30],linecolor=:black, opacity=0.3, linestyle=:dash, label=:none)
+end
 
 # ╔═╡ Cell order:
 # ╠═0d3bf5f6-1171-11ec-0fee-c73bb459dc3d
 # ╠═8adb2e56-320c-420f-9938-3c96b7f06f22
 # ╟─1bb0fcfc-2d7a-4634-9c93-263050c56a55
-# ╠═6790a86a-3990-4c6a-878f-c18779f8d48d
-# ╠═2b6d959f-63bb-4d42-a34d-70d93f6a1636
-# ╠═7670ffbc-3621-4acb-b1e3-b56668470c24
-# ╠═d08cce9d-dd9c-4530-82ae-bf1db8be3281
-# ╠═cf83549c-03b1-4f7d-be29-d3a29da3e8f7
-# ╠═5ec611f4-d3ea-4c5d-9221-4dcf2da3e18c
-# ╠═dfa42c2b-6424-458a-a589-a1c5429ec4db
-# ╠═85dfe3ed-cf70-4fde-a94a-f70c3fe4abf6
+# ╠═5420952d-4e11-469a-ab1e-67ed8fff6c4a
+# ╠═1caa5db3-b761-43f9-bbb2-66c3b4779b56
+# ╠═e7fb5232-502d-4c94-8250-4fff4b7b4176
+# ╟─becb08ed-fbec-4047-b8d3-a29cae874114
+# ╠═2fedb87d-85ab-4c11-8e6c-2494a3311b38
+# ╟─6790a86a-3990-4c6a-878f-c18779f8d48d
 # ╟─043f8da8-f17a-4486-9c49-7d5ecc75457f
-# ╠═354b27e3-75b4-45ce-9b45-88b8c110039f
 # ╠═3ee589ed-0fe0-4328-88e8-d2fb6a98bf28
-# ╠═75560584-1631-4c93-8808-e269d345e1c8
-# ╠═3a5e3aa0-e34e-457c-a405-9bc95cd88910
-# ╠═62d41be1-2970-48e1-b689-c2ecf1ab10ce
-# ╠═456021aa-3dbf-4102-932f-43109905f9eb
-# ╠═44343331-60aa-4985-b0c2-c7e9bc7885cd
-# ╠═e63a5860-587c-4aff-91be-a894b3443943
-# ╠═bbaf0a64-2471-4106-a27c-9dd5a4f58c7c
-# ╠═3df40867-674b-405a-a05c-0733a4caaa67
-# ╠═3229da2a-92f3-4064-bb80-cbd9f5523d7d
-# ╠═a0971202-45c7-4947-a6f6-8ba1301d0316
-# ╟─6a20715a-9dc9-461a-b6a2-f02522e277f0
 # ╠═bcba6521-1cfb-4ee7-a421-bd1def3770a4
-# ╠═56e0da0b-8858-459a-9aae-0eba4797cc06
-# ╠═5e0ac810-1689-4bfb-88a8-85504cd821b6
-# ╠═c866c71e-5dce-4af1-84bb-045815d1acb9
-# ╟─91fa8319-1702-4cad-8ae8-0c1ed51a7bb8
+# ╟─57f45bc3-4978-4abc-8763-0bcd9ce62542
+# ╠═274fe051-0317-4651-b6eb-7c7824b7c5b1
+# ╠═d4fa5204-79ab-4dd0-88be-92b65a546580
+# ╠═b4b282ee-83d0-41ce-8f7c-eca27e13b78a
+# ╠═287e2f5d-22a6-40eb-a534-2e0c1de744b2
+# ╟─addb6923-725a-451e-a1fb-af35c3cd6aee
+# ╠═396e1062-1acc-4aa0-ac29-fa245b0f2f46
+# ╠═5e4444cd-41bc-4720-a18c-657c8b7ee3ee
+# ╠═ce3ded6c-889e-4db1-b40c-0548be4397fd
+# ╠═befd54da-edf0-4fd2-9cbd-752fed1fd60c
+# ╠═c3f555dc-e80b-4d2c-9969-fd617219aee3
+# ╠═2a119b92-d2e2-4799-ae32-a66f00d4edd4
+# ╠═1a1c1ad8-5266-4f70-87f5-adb88828b1e6
+# ╠═49baa0cc-cb74-4f0d-a966-b153013a649f
+# ╠═ff5993c2-8705-4e62-afe7-5aab0549fc18
+# ╠═867d0540-62a1-4675-9ef5-8e712b1a82c4
+# ╠═9e06b199-b05b-4c0b-b075-a98e526704c2
+# ╠═9e7f3181-6de9-4cf9-b536-e82f8d02db9f
+# ╠═998f3cb3-1098-4262-8216-d5f48b72d6bd
