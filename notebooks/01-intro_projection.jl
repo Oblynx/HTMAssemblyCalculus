@@ -86,16 +86,19 @@ Minicolumns will be explained later.
 # ╔═╡ bbaf0a64-2471-4106-a27c-9dd5a4f58c7c
 begin
 	Nin= 1e3|> Int        		# input size
-	Nn= 4e5             	    # number of neurons in each area
-	k= 20                 		# neurons per minicolumn
+	Nn= 30e4             	    # number of neurons in each area
+	k= 40                 		# neurons per minicolumn
 	thresholds= ( 				# calibrate how many dendritic inputs needed to fire
-		tm_learn= 20,
-		tm_activate= 25,
-		tm_dendriteSynapses= 50,
+		tm_learn= 14,
+		tm_activate= 19,
+		tm_dendriteSynapses= 60,
 	)
 	learnrate= (
-		p⁺= .06,
-		p⁻= .02,
+		dist_p⁺= .058,
+		dist_p⁻= .017,
+		dist_LTD_p⁻= .0008,
+		prox_p⁺= .10,
+		prox_p⁻= .04,
 	)
 end
 
@@ -104,8 +107,14 @@ begin
 	_Nc()= floor(Int,Nn/k) 		# number of minicolumns
 	sparsity()= 1/sqrt(_Nc());
 	params_A= (
-		sp= SPParams(szᵢₙ=Nin, szₛₚ=_Nc(), s= sparsity(), prob_synapse=1e-3, enable_local_inhibit=false),
-		tm= TMParams(Nc=_Nc(), k=k, p⁺_01= learnrate.p⁺, p⁻_01= learnrate.p⁻, θ_stimulus_learn=thresholds.tm_learn, θ_stimulus_activate=thresholds.tm_activate, synapseSampleSize=thresholds.tm_dendriteSynapses)
+		sp= SPParams(szᵢₙ=Nin, szₛₚ=_Nc(), s= sparsity(), prob_synapse=6e-3,
+			p⁺_01= learnrate.prox_p⁺, p⁻_01= learnrate.prox_p⁻,
+			enable_local_inhibit=false),
+		tm= TMParams(Nc=_Nc(), k=k,
+			p⁺_01= learnrate.dist_p⁺, p⁻_01= learnrate.dist_p⁻, LTD_p⁻_01= learnrate.dist_LTD_p⁻,
+			θ_stimulus_learn=thresholds.tm_learn,
+			θ_stimulus_activate=thresholds.tm_activate,
+			synapseSampleSize=thresholds.tm_dendriteSynapses)
 	)
 	# parameters for "merge" or "work" region, where assemblies will be formed
 	params_B= @set params_A.sp.szᵢₙ= params_A.tm.Nₙ
@@ -162,7 +171,7 @@ Each experiment will run for `T` steps and we will run many experiments with dif
 """
 
 # ╔═╡ 1015f629-9818-4dbb-b574-97c552e96164
-T= 40; experiments=6;
+T= 50; experiments=8;
 
 # ╔═╡ 62d41be1-2970-48e1-b689-c2ecf1ab10ce
 md"""
@@ -264,6 +273,13 @@ begin
 		ylabel="Assembly convergence", legend=:none
 	)
 end
+
+# ╔═╡ 71a2a9e5-f5cd-4c61-bfc7-4ee950897e16
+md"""
+At the final moment of the simulation we can observe:
+- Ideal fraction of active neurons: **$(1/k*100)%** (ie. ``1/k`` for perfect prediction)
+- Actual fraction of active neurons: **$(round(activity_n(y)[end]/activity_n(y)[1]*100, sigdigits=2))%**
+"""
 
 # ╔═╡ 2b6d959f-63bb-4d42-a34d-70d93f6a1636
 md"""
@@ -427,14 +443,22 @@ We can monitor how surprised the region is as it follows a stimulus schedule tha
 # ╔═╡ 63b3f98f-d8a6-4bb1-b3f7-0ea06e6769c4
 x2= @chain bitrand(Nin) A(_).active;
 
+# ╔═╡ 786f8a60-f4e7-42f5-aff1-f5a57049b2c7
+flatCollect(x)= x|> Iterators.flatten|> collect
+
 # ╔═╡ d73ae1ad-b35f-4c6b-a668-05700e12ec2b
 stimulus= [
 	[x for t=1:T],
 	[x2 for t=1:T],
 	[x.|x2 for t=1:T],
-	[x for t=1:5],
-	[x2 for t=1:5],
-]|> Iterators.flatten|> collect;
+	[
+		[[x,x2] for t=1:T/4]|> flatCollect,
+		[x2,x2,x2,x2,x2],
+		[[x,x2] for t=T/4+4:T]|> flatCollect,
+	]|> flatCollect,
+	[x for t=1:10],
+	[x2 for t=1:10],
+]|> flatCollect;
 
 # ╔═╡ a43e8939-4e57-4307-a0f5-6a89b276df43
 begin
@@ -460,10 +484,11 @@ begin
 		textp(.5T, "x*"),
 		textp(1.5T,"x₂*"),
 		textp(2.5T,"(x.|x₂)*"),
-		textp(3.5T+30, "5x,5x₂"),
+		textp(4T, "(x,x₂)*"),
+		#textp(3.5T+30, "5x,5x₂"),
 	])
 	sep!(x)= vline!([x,x], linecolor=:grey, linestyle=:dash, linewidth=.5, label=:none)
-	sep!(T); sep!(2T); sep!(3T)
+	sep!(T); sep!(2T); sep!(3T); sep!(5T)
 end
 
 # ╔═╡ 072d080f-8e3d-4a88-a45d-ad3731cdf97a
@@ -502,6 +527,7 @@ The important note though is that the region settles into a comfortable anticipa
 # ╟─56e0da0b-8858-459a-9aae-0eba4797cc06
 # ╠═cf83549c-03b1-4f7d-be29-d3a29da3e8f7
 # ╠═85dfe3ed-cf70-4fde-a94a-f70c3fe4abf6
+# ╠═71a2a9e5-f5cd-4c61-bfc7-4ee950897e16
 # ╟─2b6d959f-63bb-4d42-a34d-70d93f6a1636
 # ╠═3a5e3aa0-e34e-457c-a405-9bc95cd88910
 # ╠═5ec611f4-d3ea-4c5d-9221-4dcf2da3e18c
@@ -526,7 +552,8 @@ The important note though is that the region settles into a comfortable anticipa
 # ╟─9b5adcab-9d9e-4b4f-af9d-d44ed2248f29
 # ╟─f03586a0-7c45-4122-bb72-79bac82c1f13
 # ╠═63b3f98f-d8a6-4bb1-b3f7-0ea06e6769c4
+# ╠═786f8a60-f4e7-42f5-aff1-f5a57049b2c7
 # ╠═d73ae1ad-b35f-4c6b-a668-05700e12ec2b
 # ╟─a43e8939-4e57-4307-a0f5-6a89b276df43
-# ╟─32e26605-df43-4d4a-a66e-1acc33b5da6d
+# ╠═32e26605-df43-4d4a-a66e-1acc33b5da6d
 # ╟─072d080f-8e3d-4a88-a45d-ad3731cdf97a

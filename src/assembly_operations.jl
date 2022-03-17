@@ -103,24 +103,29 @@ First, we define parameters that have been tuned to work well with assembly calc
 # ╔═╡ 1cde9527-e7fc-4fc3-9759-7616b40ac2ad
 begin
 	Nin= 1e3|> Int        		# input size
-	Nn= 20e4             	    # number of neurons in each area
-	k= 50                 		# neurons per minicolumn
+	Nn= 30e4             	    # number of neurons in each area
+	k= 40                 		# neurons per minicolumn
 	# calibrate how many dendritic inputs needed to fire
 	# these are related to the size of patterns, which ranges between
 	# `_Nc()*sparsity() * [1..k]` (from perfectly unambiguous to bursting)
 	thresholds= (
-		tm_learn= 18,
-		tm_activate= 30,
-		tm_dendriteSynapses= 65,
+		tm_learn= 14,
+		tm_activate= 19,
+		tm_dendriteSynapses= 60,
 	)
 	learnrate= (
-		dist_p⁺= .009,
-		dist_p⁻= .010,
-		dist_LTD_p⁻= .0006,
+		dist_p⁺= .058,
+		dist_p⁻= .017,
+		dist_LTD_p⁻= .0008,
 		prox_p⁺= .10,
 		prox_p⁻= .04,
 	)
 end
+
+# ╔═╡ 2698fbdb-5bd1-4902-b6d7-be1cdd9be5ad
+md"""
+Note: too high value for `tm_dendriteSynapses` can cause *instability*
+"""
 
 # ╔═╡ 25f3e7a1-21a6-4458-90af-349b6c3cbff4
 md"Then, we produce parameter arrays mostly with these values that are used in constructing HTM Regions."
@@ -163,7 +168,7 @@ Setfield = "~0.8.1"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.7.1"
+julia_version = "1.7.2"
 manifest_format = "2.0"
 
 [[deps.AbstractFFTs]]
@@ -670,6 +675,7 @@ uuid = "3f19e933-33d8-53b3-aaab-bd5110c3b7a0"
 # ╠═8f57d50e-dccc-4440-b252-a7f5ef34d084
 # ╟─11d7cda5-4103-4a94-b7a7-1fbfbaaa8c5c
 # ╠═1cde9527-e7fc-4fc3-9759-7616b40ac2ad
+# ╟─2698fbdb-5bd1-4902-b6d7-be1cdd9be5ad
 # ╟─25f3e7a1-21a6-4458-90af-349b6c3cbff4
 # ╠═de50d108-6522-42d4-ae86-6d27b805c5d5
 # ╠═6cf24775-ffcd-4c05-8219-d4850d21cefa
