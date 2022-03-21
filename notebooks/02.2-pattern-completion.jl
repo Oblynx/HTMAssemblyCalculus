@@ -135,11 +135,39 @@ misprediction= 1 - subpredict_assembly / count(M.tm(ĉ).predictive)
 
 # ╔═╡ 81243c19-dc2b-49af-8f7d-5969dd52291d
 md"""
-It stands out that when the assembly is stimulated, the predictive neurons it generates predict only $(round(coverage_full))% of the assembly.
-A possible explanation is that, even though it has converged in terms of active neurons, the assembly is still building predictive connections internally.
+When the assembly is stimulated, the predictive neurons it generates predict $(round(coverage_full))% of the assembly.
+This is a hallmark of a converged assembly: it can fully predict its own activation.
 
 Compared to this, the $(subsampling) subset predicts $(round(coverage_subset))% of the assembly.
 In other words, it retains $(round(coverage_subset/coverage_full*100))% of the full activation's predictive power, allowing a × $(round(coverage_subset/coverage_full / subsampling, sigdigits=2)) higher subsampling of the active neurons before prediction deteriorates.
+
+### Assembly recall as a function of subsampling
+
+"""
+
+# ╔═╡ 32e81cbb-7da0-4767-a616-a99e631863c5
+begin
+	subset_fractions= 0:.05:1
+	ĉ_sweep= map(p-> subset(c,p), subset_fractions)
+	subpredict_coverage_sweep= map(c_sub-> lib.overlap( assembly, M.tm(c_sub).predictive )/fullpredict_assembly*100, ĉ_sweep)
+end
+
+# ╔═╡ 98487e5e-dec9-4419-90b8-f258a96f5729
+plot(subset_fractions, subpredict_coverage_sweep,
+	ylabel= "assembly recall %", xlabel= "assembly subsampling", label=:none,
+	title= "Assembly recall as a function of subsampling")
+
+# ╔═╡ 801c61f2-8981-4875-b714-c87ce84a287d
+md"""
+The graph shows that the coverage/recall is very sensitive to the assembly's subsampling.
+Essentially, the assembly is robust up to about 30% of its neurons being activated; the rest are redundant, and are going to be activated by alternative connections on the next timestep.
+
+*This function of assembly calculus is preserved by the HTM model.*
+
+#### Robustness as a function of projection convergence time?
+
+TODO:
+- Manually converge the assembly and show this plot every 5 convergence steps.
 """
 
 # ╔═╡ Cell order:
@@ -163,4 +191,7 @@ In other words, it retains $(round(coverage_subset/coverage_full*100))% of the f
 # ╠═54186c54-cca4-4033-b606-6fcec6de470e
 # ╠═d0541d26-dc92-4987-9e62-66a05289acb2
 # ╠═7ae2283e-5441-44d6-9950-04d42e28e781
-# ╠═81243c19-dc2b-49af-8f7d-5969dd52291d
+# ╟─81243c19-dc2b-49af-8f7d-5969dd52291d
+# ╠═32e81cbb-7da0-4767-a616-a99e631863c5
+# ╠═98487e5e-dec9-4419-90b8-f258a96f5729
+# ╟─801c61f2-8981-4875-b714-c87ce84a287d
