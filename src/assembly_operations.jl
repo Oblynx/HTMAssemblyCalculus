@@ -47,6 +47,19 @@ See also [01-intro_projection.jl](./open?path=notebooks/01-intro_projection.jl)
 """
 project!(R,x; time_to_convergence=40)= Iterators.drop((step!(R,x).active for t= 1:time_to_convergence), time_to_convergence-1)|> first
 
+# ╔═╡ 37056ba5-93a4-49f7-b285-9bf750ea52ae
+"""
+`probe(R,x)` shows the input `x` 2 times to the region.
+This temporarily changes the region's predictive state, therefore more faithfully representing the region's response to a stimulus in the context of assemblies, compared to `R(x)`.
+It doesn't modify `R`.
+"""
+probe(R,x)= begin
+	# TODO: step!(R,x, learn= false)
+	_R= deepcopy(R)
+	step!(_R,x, falses(0), false)
+	_R(x)
+end
+
 # ╔═╡ 1598b575-7bd2-48b1-97ab-e1a41a8d1680
 "`interconnectionMeasure(x,R)` counts the number of distal synapses between neurons of the given activation pattern `x` in region `R`."
 interconnectionMeasure(x, R)= x' * distalSynapses(R) * x
@@ -62,9 +75,20 @@ subset(x,p)= @chain [i for i= HierarchicalTemporalMemory.Truesof(x)] begin
 	HierarchicalTemporalMemory.bitarray(_,length(a))
 end
 
+# ╔═╡ 142ecb6b-01d0-4c30-9ad8-60f7f697e173
+"`sparseBitrand(dims, sparsity)` like `bitrand` creates a random bitvector, but with only a small percentage `sparsity` of `Trues`."
+sparseBitrand(dims, sparsity)= HierarchicalTemporalMemory.bitarray(randsubseq(1:dims, sparsity), dims)
+
 # ╔═╡ c199f632-b04e-4a29-acf1-de5ae63429fd
 "`overlap(x,y)` of 2 assemblies in the same region is the number of neurons that are active in both. Symbol: `x&y`"
 overlap(x,y)= count(x .& y)
+
+# ╔═╡ 6bd2e07f-3ea7-4e30-b666-7f0c153e5ee3
+"`minicolumnOverlap(a,b,R)` is the number of minicolumns that are active in both a,b (of region R)"
+minicolumnOverlap(a,b,R)= overlap(
+	any(reshape(a,R.tm.params.k,:),dims=1),
+	any(reshape(b,R.tm.params.k,:),dims=1)
+)
 
 # ╔═╡ 29d5f907-a110-490c-94a0-fe707a96b99d
 """
@@ -667,10 +691,13 @@ uuid = "3f19e933-33d8-53b3-aaab-bd5110c3b7a0"
 # ╟─0ada6b68-73d3-11ec-33d7-3b010e6c893e
 # ╠═ea459f12-2b04-41a8-946f-a3ac3d9d040c
 # ╠═4c15ea56-c8ec-4d3f-bdb6-ab36cf357b7e
+# ╠═37056ba5-93a4-49f7-b285-9bf750ea52ae
 # ╠═1598b575-7bd2-48b1-97ab-e1a41a8d1680
 # ╠═779253f0-0526-4ea4-8eb3-5aa0de55c14c
 # ╠═08fd02b1-c020-4b7f-86c7-bcfd5c9d1a40
+# ╠═142ecb6b-01d0-4c30-9ad8-60f7f697e173
 # ╠═c199f632-b04e-4a29-acf1-de5ae63429fd
+# ╠═6bd2e07f-3ea7-4e30-b666-7f0c153e5ee3
 # ╟─29d5f907-a110-490c-94a0-fe707a96b99d
 # ╠═8f57d50e-dccc-4440-b252-a7f5ef34d084
 # ╟─11d7cda5-4103-4a94-b7a7-1fbfbaaa8c5c
