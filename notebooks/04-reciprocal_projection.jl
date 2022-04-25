@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.18.2
+# v0.19.0
 
 using Markdown
 using InteractiveUtils
@@ -127,7 +127,7 @@ The same propagation rules apply for the `step!` function, which simply calls `s
 a()= @chain bitrand(lib.Nin) I(_).active;
 
 # ╔═╡ bcba6521-1cfb-4ee7-a421-bd1def3770a4
-T= 30; experiments= 5; net_T= 4T
+T= 40; experiments= 8; net_T= 2T;
 
 # ╔═╡ 57f45bc3-4978-4abc-8763-0bcd9ce62542
 md"""
@@ -181,11 +181,11 @@ md"""
 The convergence curve:
 """
 
-# ╔═╡ 396e1062-1acc-4aa0-ac29-fa245b0f2f46
-Δy= [lib.reldistance(y[i,e], y[i+1,e]) for i=1:net_T-1, e=1:experiments];
+# ╔═╡ cafb952b-6bb2-4329-ada7-8d24a892090e
+Δy= @chain [ lib.convergence(y[:,e]) for e= 1:experiments ] lib.flatCollect reshape(_, :, experiments);
 
 # ╔═╡ 5e4444cd-41bc-4720-a18c-657c8b7ee3ee
-Δx= [lib.reldistance(x[i,e], x[i+1,e]) for i=1:net_T-1, e=1:experiments];
+Δx= @chain [ lib.convergence(x[:,e]) for e=1:experiments] lib.flatCollect reshape(_, :, experiments);
 
 # ╔═╡ ce3ded6c-889e-4db1-b40c-0548be4397fd
 expmedian(y)= median(y, dims=2);
@@ -204,11 +204,11 @@ normalize(v; dims=1)= (v .- minimum(v,dims=dims)) ./ maximum(v,dims=dims)
 
 # ╔═╡ 2a119b92-d2e2-4799-ae32-a66f00d4edd4
 begin
-	plot(hcat(x_interconnected|> expmedian|> normalize,
-		y_interconnected|> expmedian|> normalize),
-		minorgrid=true, title="Assembly interconnection density training curve",
-		ylabel="interconnection density",
-		xlabel="t", label=:none
+	plot(hcat(x_interconnected|> expmedian,
+		y_interconnected|> expmedian),
+		minorgrid=true, title="Assembly interconnection training curve",
+		ylabel="interconnection",
+		xlabel="t", label=["x" "y"]
 	)
 	vline!([30,30],linecolor=:black, opacity=0.3, linestyle=:dash, label=:none)
 end
@@ -246,27 +246,27 @@ begin
 end
 
 # ╔═╡ 867d0540-62a1-4675-9ef5-8e712b1a82c4
-Δx_pre= [lib.reldistance(x_pre[i,e], x_pre[i+1,e]) for i=1:net_T-1, e=1:experiments];
+Δx_pre= @chain [ lib.convergence(x_pre[:,e]) for e= 1:experiments ] lib.flatCollect reshape(_, :, experiments);
 
-# ╔═╡ 9e06b199-b05b-4c0b-b075-a98e526704c2
-Δy_pre= [lib.reldistance(y_pre[i,e], y_pre[i+1,e]) for i=1:net_T-1, e=1:experiments];
+# ╔═╡ d49d4466-ba1c-4e24-908e-2af9595f509a
+Δy_pre= @chain [ lib.convergence(y_pre[:,e]) for e= 1:experiments ] lib.flatCollect reshape(_, :, experiments);
 
 # ╔═╡ 9e7f3181-6de9-4cf9-b536-e82f8d02db9f
 begin
-	plot(Δx_pre, minorgrid=true, ylim= [0,1], opacity=0.3, labels=nothing,
-		title="Convergence of yₜ", ylabel="Relative distance per step Δyₜ",
+	plot(Δy_pre, minorgrid=true, ylim= [0,1], opacity=0.3, labels=nothing,
+		title="Convergence of xₜ with pretraining", ylabel="Relative distance per step Δyₜ",
 		xlabel="t")
-	plot!(Δx_pre|>expmedian, linewidth=2, label="median Δȳ")
+	plot!(Δy_pre|>expmedian, linewidth=2, label="median Δȳ")
 	hline!(zeros(T) .+ .05, linecolor=:black, linestyle=:dash, label="5% limit")
 end
 
 # ╔═╡ 998f3cb3-1098-4262-8216-d5f48b72d6bd
 begin
-	plot(hcat(x_pre_interconnected|> expmedian|> normalize,
-		y_pre_interconnected|> expmedian|> normalize),
-		minorgrid=true, title="Assembly interconnection density training curve",
-		ylabel="interconnection density",
-		xlabel="t", label=:none
+	plot(hcat(x_pre_interconnected|> expmedian,
+		y_pre_interconnected|> expmedian),
+		minorgrid=true, title="Assembly interconnection training curve",
+		ylabel="interconnection",
+		xlabel="t", label=["x" "y"]
 	)
 	vline!([30,30],linecolor=:black, opacity=0.3, linestyle=:dash, label=:none)
 end
@@ -290,16 +290,16 @@ end
 # ╠═b4b282ee-83d0-41ce-8f7c-eca27e13b78a
 # ╠═287e2f5d-22a6-40eb-a534-2e0c1de744b2
 # ╟─addb6923-725a-451e-a1fb-af35c3cd6aee
-# ╠═396e1062-1acc-4aa0-ac29-fa245b0f2f46
+# ╠═cafb952b-6bb2-4329-ada7-8d24a892090e
 # ╠═5e4444cd-41bc-4720-a18c-657c8b7ee3ee
 # ╠═ce3ded6c-889e-4db1-b40c-0548be4397fd
 # ╠═befd54da-edf0-4fd2-9cbd-752fed1fd60c
 # ╠═c3f555dc-e80b-4d2c-9969-fd617219aee3
 # ╠═2a119b92-d2e2-4799-ae32-a66f00d4edd4
-# ╠═1a1c1ad8-5266-4f70-87f5-adb88828b1e6
+# ╟─1a1c1ad8-5266-4f70-87f5-adb88828b1e6
 # ╠═49baa0cc-cb74-4f0d-a966-b153013a649f
 # ╠═ff5993c2-8705-4e62-afe7-5aab0549fc18
 # ╠═867d0540-62a1-4675-9ef5-8e712b1a82c4
-# ╠═9e06b199-b05b-4c0b-b075-a98e526704c2
+# ╠═d49d4466-ba1c-4e24-908e-2af9595f509a
 # ╠═9e7f3181-6de9-4cf9-b536-e82f8d02db9f
 # ╠═998f3cb3-1098-4262-8216-d5f48b72d6bd
