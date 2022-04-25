@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.18.2
+# v0.19.0
 
 using Markdown
 using InteractiveUtils
@@ -46,29 +46,48 @@ repeat until yₜ converges:
   fire x
 ```
 
-Note that we don't necessarily expect point stability, but a limit circle of low enough radius. More on this with the convergence measure.
+Note that we don't necessarily expect point stability, but that no new neurons are being recruited to represent the output.
+Point stability would correspond to getting exactly the same output yₜ ∀ t>tₛ.
+Instead, convergence of yₜ relies on the set of all neurons that were activated until now (ie. belonging in any yₜ ∀ t<tₛ).
 
+### Convergence metric
+
+Let Sₜ be the set of neurons that have been activated in the region between time 0 and t:
+``Sₜ = \sum_0^t y₀ + y₁ + ... + yₜ``,
+where ``+`` is boolean OR.
+Convergence is achieved at t₀ when ``Sₜ = S\\_{t-1} ∀ t>t₀`` .
+
+In practice, we want a limited convergence metric that only looks back a set amount of steps `τ`, not to the beginning of time.
+This `S(yₜ,τ)` is a moving average filter on yₜ.
+"""
+
+# ╔═╡ 2e40a09d-3220-4424-851d-8470dfa235d1
+S(y,τ)= [reduce((a,b)->a.|b, @view y[max(1,t-τ):t]) for t=1:length(y)]
+
+# ╔═╡ e109962a-dfaa-438d-aa86-3e074e57f51d
+md"""
 ## Experiment
 
 ### The Plan
 
-We will implement this simple algorithm with HTM regions and check the convergence of `y`.
-If `yₜ` converges to a limit circle as $t→∞$ (practically 10-100 steps) of a small enough radius, we will consider the projection implemented.
+We will implement this simple algorithm with HTM regions and check the convergence of `y` using the convergence metric `S`.
+If `Sₜ` converges to a limit circle as $t→∞$ (practically 10-100 steps) of a small enough radius, we will consider the projection implemented.
 
 But how small is small enough?
 The algorithm parameters might have a big impact on the convergence radius, or might even prohibit convergence.
-Intuitively in order to set an expectation, let the limit radius $|yₜ₁ - yₜ₂| < 5\%|y|$.
+Intuitively in order to set an expectation, let the limit radius $|Sₜ₁ - Sₜ₂| < 5\%|S|$.
 
 Let's define the relative distance behind this limit radius.
 Since $yᵢ$ are sparse binary vectors:
-- the core "similarity" kernel will be bitwise AND: $yᵢ .\& yⱼ$
+- the core "similarity" kernel will be bitwise AND: $yᵢ \& yⱼ$
 - the norm $|yᵢ|$ will be the count of `true`
+- the similarity will be normalized by the harmonic mean of $|yᵢ|,|yⱼ|$
 
 The relative distance $\frac{|yᵢ - yⱼ|}{|y|}$ can be:
 """
 
 # ╔═╡ 70471bdc-660e-442e-b92a-f486abd120a7
-reldistance(yᵢ,yⱼ)= 1 - count(yᵢ .& yⱼ) / min(count(yᵢ), count(yⱼ))
+reldistance(yᵢ,yⱼ)= 1 - count(yᵢ .& yⱼ) * mean(inv,[count(yᵢ),count(yⱼ)])
 
 # ╔═╡ 7620c202-c6cf-44db-9cda-13642e28b45a
 md"""
@@ -86,8 +105,8 @@ Minicolumns will be explained later.
 # ╔═╡ bbaf0a64-2471-4106-a27c-9dd5a4f58c7c
 begin
 	Nin= 1e3|> Int        		# input size
-	Nn= 30e4             	    # number of neurons in each area
-	k= 40                 		# neurons per minicolumn
+	Nn= 20e4             	    # number of neurons in each area
+	k= 15                 		# neurons per minicolumn
 	thresholds= ( 				# calibrate how many dendritic inputs needed to fire
 		tm_learn= 14,
 		tm_activate= 19,
@@ -95,8 +114,8 @@ begin
 	)
 	learnrate= (
 		dist_p⁺= .058,
-		dist_p⁻= .017,
-		dist_LTD_p⁻= .0008,
+		dist_p⁻= .015,
+		dist_LTD_p⁻= .0001,
 		prox_p⁺= .10,
 		prox_p⁻= .04,
 	)
@@ -171,7 +190,7 @@ Each experiment will run for `T` steps and we will run many experiments with dif
 """
 
 # ╔═╡ 1015f629-9818-4dbb-b574-97c552e96164
-T= 50; experiments=8;
+T= 60; experiments=6;
 
 # ╔═╡ 62d41be1-2970-48e1-b689-c2ecf1ab10ce
 md"""
@@ -209,23 +228,34 @@ begin
 end
 
 # ╔═╡ 6a20715a-9dc9-461a-b6a2-f02522e277f0
-md"We calculate the $Δyₜ=\texttt{reldistance}(yₜ,yₜ₊₁) ∀ t∈\{1..T-1\}$ and the experiment median. This metric will show whether `yₜ` converges."
+md"We calculate the $ΔSₜ=\texttt{reldistance}(Sₜ,Sₜ₊₁) ∀ t∈\{1..T-1\}$ and the experiment median. This metric will show whether `yₜ` converges."
+
+# ╔═╡ 18e6d1c5-cd7a-4c44-a186-3ec2404f4ffc
+Δrel(x)= @views [0; map(reldistance, x[1:end-1], x[2:end])]
+
+# ╔═╡ d59c79f9-c570-4f71-a379-6808bc189e02
+convergence(yₜ; τ=5)= Δrel(S(yₜ,τ))
 
 # ╔═╡ e63a5860-587c-4aff-91be-a894b3443943
-Δyₜₑ()= [reldistance(y[i,e], y[i+1,e]) for i=1:T-1, e=1:experiments];
+ΔSₜₑ()= @chain begin
+	[convergence(y[:,e],τ=5) for e=1:experiments]
+	Iterators.flatten
+	collect
+	reshape(_, :,experiments)
+end
 
 # ╔═╡ c866c71e-5dce-4af1-84bb-045815d1acb9
 expmedian(y)= median(y, dims=2);
 
 # ╔═╡ 75560584-1631-4c93-8808-e269d345e1c8
-Δȳₜ= Δyₜₑ()|> expmedian;
+ΔŜₜ= ΔSₜₑ()|> expmedian;
 
 # ╔═╡ 456021aa-3dbf-4102-932f-43109905f9eb
 begin
-	plot(Δyₜₑ(), minorgrid=true, ylim= [0,.5], opacity=0.3, labels=nothing,
-		title="Convergence of yₜ", ylabel="Relative distance per step Δyₜ",
+	plot(ΔSₜₑ(), minorgrid=true, ylim= [0,.5], opacity=0.3, labels=nothing,
+		title="Convergence of yₜ", ylabel="Relative distance ΔSₜ",
 		xlabel="t")
-	plot!(Δȳₜ, linewidth=2, label="median Δȳ")
+	plot!(ΔŜₜ, linewidth=2, label="median ΔŜ")
 	hline!(zeros(T) .+ .05, linecolor=:black, linestyle=:dash, label="5% limit")
 end
 
@@ -268,7 +298,7 @@ begin
 		rightmargin=14mm, legend=:none, title="Less surprise → fewer active neurons",
 		minorgrid= true,
 	)
-	plot!(twinx(), Δȳₜ, linecolor=:red,
+	plot!(twinx(), ΔŜₜ, linecolor=:red,
 		foreground_color_border=:red, foreground_color_axis=:red,
 		ylabel="Assembly convergence", legend=:none
 	)
@@ -401,9 +431,9 @@ end
 
 # ╔═╡ 03bf1a27-10bc-4362-aa76-4d24befeea4d
 begin
-	plot(trainingcurveDensity,
+	plot(log10.(trainingcurveDensity),
 		minorgrid=true, title="Assembly interconnection density training curve",
-		ylabel="interconnection density",
+		ylabel="interconnection density log10",
 		xlabel="t", label=:none
 	)
 	vline!([30,30],linecolor=:black, opacity=0.3, linestyle=:dash, label=:none)
@@ -494,12 +524,14 @@ end
 # ╔═╡ 072d080f-8e3d-4a88-a45d-ad3731cdf97a
 md"""
 A full discussion of what the surprise curves show, especially for more experiments with sequences, are beyond the scope of the basic operations of assembly calculus.
-The important note though is that the region settles into a comfortable anticipation of `x`, and a reasonable expectation of `x₂`.
+The important note though is that the region settles into a comfortable anticipation of both inputs `x`, `x₂`.
 """
 
 # ╔═╡ Cell order:
 # ╠═0d3bf5f6-1171-11ec-0fee-c73bb459dc3d
 # ╟─1bb0fcfc-2d7a-4634-9c93-263050c56a55
+# ╠═2e40a09d-3220-4424-851d-8470dfa235d1
+# ╟─e109962a-dfaa-438d-aa86-3e074e57f51d
 # ╠═70471bdc-660e-442e-b92a-f486abd120a7
 # ╟─7620c202-c6cf-44db-9cda-13642e28b45a
 # ╟─043f8da8-f17a-4486-9c49-7d5ecc75457f
@@ -520,6 +552,8 @@ The important note though is that the region settles into a comfortable anticipa
 # ╟─62d41be1-2970-48e1-b689-c2ecf1ab10ce
 # ╠═d08cce9d-dd9c-4530-82ae-bf1db8be3281
 # ╟─6a20715a-9dc9-461a-b6a2-f02522e277f0
+# ╠═18e6d1c5-cd7a-4c44-a186-3ec2404f4ffc
+# ╠═d59c79f9-c570-4f71-a379-6808bc189e02
 # ╠═e63a5860-587c-4aff-91be-a894b3443943
 # ╠═c866c71e-5dce-4af1-84bb-045815d1acb9
 # ╠═75560584-1631-4c93-8808-e269d345e1c8
@@ -556,4 +590,4 @@ The important note though is that the region settles into a comfortable anticipa
 # ╠═d73ae1ad-b35f-4c6b-a668-05700e12ec2b
 # ╟─a43e8939-4e57-4307-a0f5-6a89b276df43
 # ╠═32e26605-df43-4d4a-a66e-1acc33b5da6d
-# ╟─072d080f-8e3d-4a88-a45d-ad3731cdf97a
+# ╠═072d080f-8e3d-4a88-a45d-ad3731cdf97a

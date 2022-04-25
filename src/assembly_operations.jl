@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.18.2
+# v0.19.0
 
 using Markdown
 using InteractiveUtils
@@ -13,6 +13,9 @@ using Setfield
 # ╔═╡ 8429596b-8765-4548-8300-b5449889395d
 using Chain
 
+# ╔═╡ 2d930a14-b39e-462b-8e4d-b297573e1ea3
+using Statistics
+
 # ╔═╡ 0ada6b68-73d3-11ec-33d7-3b010e6c893e
 md"""
 # Assembly operations library
@@ -25,27 +28,37 @@ It focuses on the assembly operations.
 """
     reldistance(yᵢ,yⱼ)
 
-Relative distance between 2 activations bounded in ``[0,1]``:
-``
-yᵢ = yⱼ ⇔ reldistance(yᵢ,yⱼ) = 0
-``
+Relative distance between 2 sparse binary vectors bounded in ``[0,1]``:
+``yᵢ = yⱼ ⇔ reldistance(yᵢ,yⱼ) = 0``
 and
-``
-yᵢ ⊥ yⱼ ⇔ reldistance(yᵢ,yⱼ) = 1
-``
+``yᵢ ⊥ yⱼ ⇔ reldistance(yᵢ,yⱼ) = 1``
 """
-reldistance(yᵢ,yⱼ)= 1 - count(yᵢ .& yⱼ) / min(count(yᵢ), count(yⱼ))
+reldistance(yᵢ,yⱼ)= 1 - count(yᵢ .& yⱼ) * mean(inv, [count(yᵢ), count(yⱼ)])
+
+# ╔═╡ fdbd6b4d-dad6-4b2c-b9cc-208ac34255b1
+"`Sₜ(yₜ,τ)` is the moving average of neurons that have been activated in the region over the last τ timesteps, given the activations of the region over time yₜ."
+Sₜ(yₜ,τ)= [ reduce((a,b) -> a.|b , @view yₜ[max(1,t-τ):t]) for t=1:length(yₜ) ]
+
+# ╔═╡ f97ab6f6-cf5f-4b50-ac67-33da6abc3c41
+"`Δrel(x)` is the relative distance between 2 successive elements of x."
+Δrel(x)= @views [0; map(reldistance, x[1:end-1], x[2:end])]
+
+# ╔═╡ 36b03905-56a6-4c31-b09d-d5d4c05be704
+convergence(yₜ; τ=5)= begin
+	s= Sₜ(yₜ,τ)
+	Δrel(s)
+end
 
 # ╔═╡ 4c15ea56-c8ec-4d3f-bdb6-ab36cf357b7e
 """
-    project!(R,x; time_to_convergence=40)
+    project!(R,x; time_to_convergence=30)
 
 Create a projection of feedforward activation `x` on region `R`.
 The region `R` adapts to the stimulation.
 
 See also [01-intro_projection.jl](./open?path=notebooks/01-intro_projection.jl)
 """
-project!(R,x; time_to_convergence=40)= Iterators.drop((step!(R,x).active for t= 1:time_to_convergence), time_to_convergence-1)|> first
+project!(R,x; time_to_convergence=30)= Iterators.drop((step!(R,x).active for t= 1:time_to_convergence), time_to_convergence-1)|> first
 
 # ╔═╡ 37056ba5-93a4-49f7-b285-9bf750ea52ae
 """
@@ -54,9 +67,8 @@ This temporarily changes the region's predictive state, therefore more faithfull
 It doesn't modify `R`.
 """
 probe(R,x)= begin
-	# TODO: step!(R,x, learn= false)
 	_R= deepcopy(R)
-	step!(_R,x, falses(0), false)
+	step!(_R,x, learn= false)
 	_R(x)
 end
 
@@ -115,6 +127,9 @@ surprise(R,x)= @chain x begin
     count(bursting(R,_)) / count(_)
 end
 
+# ╔═╡ ee8b169e-a096-40fb-99c8-0365cdbed953
+flatCollect(x)= x|> Iterators.flatten|> collect
+
 # ╔═╡ 11d7cda5-4103-4a94-b7a7-1fbfbaaa8c5c
 md"""
 ## HTM regions
@@ -127,8 +142,8 @@ First, we define parameters that have been tuned to work well with assembly calc
 # ╔═╡ 1cde9527-e7fc-4fc3-9759-7616b40ac2ad
 begin
 	Nin= 1e3|> Int        		# input size
-	Nn= 30e4             	    # number of neurons in each area
-	k= 40                 		# neurons per minicolumn
+	Nn= 20e4             	    # number of neurons in each area
+	k= 15                 		# neurons per minicolumn
 	# calibrate how many dendritic inputs needed to fire
 	# these are related to the size of patterns, which ranges between
 	# `_Nc()*sparsity() * [1..k]` (from perfectly unambiguous to bursting)
@@ -139,8 +154,8 @@ begin
 	)
 	learnrate= (
 		dist_p⁺= .058,
-		dist_p⁻= .017,
-		dist_LTD_p⁻= .0008,
+		dist_p⁻= .015,
+		dist_LTD_p⁻= .0001,
 		prox_p⁺= .10,
 		prox_p⁻= .04,
 	)
@@ -181,6 +196,7 @@ PLUTO_PROJECT_TOML_CONTENTS = """
 Chain = "8be319e6-bccf-4806-a6f7-6fae938471bc"
 HierarchicalTemporalMemory = "db654dba-670c-566a-9226-64313b881ded"
 Setfield = "efcf1570-3423-57d1-acb7-fd33fddbac46"
+Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [compat]
 Chain = "~0.4.10"
@@ -688,8 +704,12 @@ uuid = "3f19e933-33d8-53b3-aaab-bd5110c3b7a0"
 # ╠═201a9fd8-7f37-48ea-b8ad-0cb1ac196c43
 # ╠═bcee52a7-7156-4b8e-8000-f6ef2d7a7078
 # ╠═8429596b-8765-4548-8300-b5449889395d
+# ╠═2d930a14-b39e-462b-8e4d-b297573e1ea3
 # ╟─0ada6b68-73d3-11ec-33d7-3b010e6c893e
 # ╠═ea459f12-2b04-41a8-946f-a3ac3d9d040c
+# ╠═fdbd6b4d-dad6-4b2c-b9cc-208ac34255b1
+# ╠═f97ab6f6-cf5f-4b50-ac67-33da6abc3c41
+# ╠═36b03905-56a6-4c31-b09d-d5d4c05be704
 # ╠═4c15ea56-c8ec-4d3f-bdb6-ab36cf357b7e
 # ╠═37056ba5-93a4-49f7-b285-9bf750ea52ae
 # ╠═1598b575-7bd2-48b1-97ab-e1a41a8d1680
@@ -700,6 +720,7 @@ uuid = "3f19e933-33d8-53b3-aaab-bd5110c3b7a0"
 # ╠═6bd2e07f-3ea7-4e30-b666-7f0c153e5ee3
 # ╟─29d5f907-a110-490c-94a0-fe707a96b99d
 # ╠═8f57d50e-dccc-4440-b252-a7f5ef34d084
+# ╠═ee8b169e-a096-40fb-99c8-0365cdbed953
 # ╟─11d7cda5-4103-4a94-b7a7-1fbfbaaa8c5c
 # ╠═1cde9527-e7fc-4fc3-9759-7616b40ac2ad
 # ╟─2698fbdb-5bd1-4902-b6d7-be1cdd9be5ad
