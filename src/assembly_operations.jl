@@ -142,8 +142,8 @@ First, we define parameters that have been tuned to work well with assembly calc
 # ╔═╡ 1cde9527-e7fc-4fc3-9759-7616b40ac2ad
 begin
 	Nin= 1e3|> Int        		# input size
-	Nn= 30e4             	    # number of neurons in each area
-	k= 40                 		# neurons per minicolumn
+	Nn= 20e4             	    # number of neurons in each area
+	k= 15                 		# neurons per minicolumn
 	# calibrate how many dendritic inputs needed to fire
 	# these are related to the size of patterns, which ranges between
 	# `_Nc()*sparsity() * [1..k]` (from perfectly unambiguous to bursting)
@@ -154,8 +154,8 @@ begin
 	)
 	learnrate= (
 		dist_p⁺= .058,
-		dist_p⁻= .017,
-		dist_LTD_p⁻= .0008,
+		dist_p⁻= .015,
+		dist_LTD_p⁻= .0001,
 		prox_p⁺= .10,
 		prox_p⁻= .04,
 	)

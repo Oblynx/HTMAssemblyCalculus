@@ -105,8 +105,8 @@ Minicolumns will be explained later.
 # ╔═╡ bbaf0a64-2471-4106-a27c-9dd5a4f58c7c
 begin
 	Nin= 1e3|> Int        		# input size
-	Nn= 30e4             	    # number of neurons in each area
-	k= 40                 		# neurons per minicolumn
+	Nn= 20e4             	    # number of neurons in each area
+	k= 15                 		# neurons per minicolumn
 	thresholds= ( 				# calibrate how many dendritic inputs needed to fire
 		tm_learn= 14,
 		tm_activate= 19,
@@ -114,8 +114,8 @@ begin
 	)
 	learnrate= (
 		dist_p⁺= .058,
-		dist_p⁻= .017,
-		dist_LTD_p⁻= .0008,
+		dist_p⁻= .015,
+		dist_LTD_p⁻= .0001,
 		prox_p⁺= .10,
 		prox_p⁻= .04,
 	)
@@ -190,7 +190,7 @@ Each experiment will run for `T` steps and we will run many experiments with dif
 """
 
 # ╔═╡ 1015f629-9818-4dbb-b574-97c552e96164
-T= 50; experiments=8;
+T= 60; experiments=6;
 
 # ╔═╡ 62d41be1-2970-48e1-b689-c2ecf1ab10ce
 md"""
